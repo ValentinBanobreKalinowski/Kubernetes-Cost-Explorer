@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cost-explorer-deployment
+  namespace: frontend
+  labels:
+    app: cost-explorer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cost-explorer
+  template:
+    metadata:
+      labels:
+        app: cost-explorer
+    spec:
+      containers:
+      - name: app
+        image: cost-explorer
+        ports:
+        - containerPort: 3000
+
+

@@ -1,0 +1,23 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+
+build:
+  local:
+    push: false
+
+  artifacts:
+    - image: cost-explorer
+      context: src
+      docker:
+        dockerfile: Dockerfile
+  tagPolicy:
+    sha256: {}
+manifests:
+  rawYaml:
+    - k8s/*.yaml
+
+portForward:
+  - resourceType: service
+    resourceName: cluster-cost-explorer-service
+    port: 8080
+    localPort: 8080

@@ -37,7 +37,7 @@ app.get('/', (req, res) => {
         <body>
             <div class="card">
                 <h1>Kubernetes Cluster Cost Explorer Application</h1>
-                <p>Template</p>
+                <p>Działa :DDD</p>
             </div>
         </body>
         </html>
