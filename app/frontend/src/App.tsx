@@ -1,8 +1,19 @@
 import { useState, useEffect } from 'react';
 import './App.css';
+import NodeCard, { type NodeInfo } from './NodeCard';
+
+interface ClusterResponse {
+  clusterName: string;
+  timestamp: string;
+  nodes: NodeInfo[];
+}
+
+interface ErrorResponse {
+  error: string;
+}
 
 function App() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ClusterResponse | ErrorResponse | null>(null);
 
   useEffect(() => {
     const fetchCluster = () => {
@@ -21,16 +32,22 @@ function App() {
     return <div className="dashboard">Loading...</div>;
   }
 
-  if (data.error) {
+  if ('error' in data) {
     return <div className="dashboard error">{data.error}</div>;
   }
 
   return (
-    <div className="dashboard">
-      <div className="stat">Cluster: <strong>{data.clusterName}</strong></div>
-      <div className="stat">Nodes: <strong>{data.nodesCount}</strong></div>
-      <div className="stat">Pods: <strong>{data.podsCount}</strong></div>
-      <div className="timestamp">Last update: {data.timestamp}</div>
+    <div className="page">
+      <div className="summary">
+        <div className="stat">Cluster: <strong>{data.clusterName}</strong></div>
+        <div className="timestamp">Last update: {data.timestamp}</div>
+      </div>
+
+      <div className="node-grid">
+        {data.nodes.map((node) => (
+          <NodeCard key={node.name} node={node} />
+        ))}
+      </div>
     </div>
   );
 }
