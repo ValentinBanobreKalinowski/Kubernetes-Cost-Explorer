@@ -15,7 +15,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: default
-  namespace: frontend 
+  namespace: backend 
 roleRef:
   kind: ClusterRole
   name: dashboard-cluster-reader-role

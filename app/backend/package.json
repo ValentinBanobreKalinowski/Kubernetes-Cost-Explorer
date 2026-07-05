@@ -1,9 +1,11 @@
 {
-  "name": "src",
+  "name": "backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/server.js",
   "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -12,8 +14,11 @@
   "dependencies": {
     "@kubernetes/client-node": "^1.4.0",
     "axios": "^1.18.1",
-    "express": "^5.2.1",
-    "fs": "^0.0.1-security",
-    "https": "^1.0.0"
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.0",
+    "typescript": "^5.9.3"
   }
 }
