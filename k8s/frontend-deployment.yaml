@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cost-explorer-frontend-deployment
+  namespace: frontend
+  labels:
+    app: cost-explorer-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cost-explorer-frontend
+  template:
+    metadata:
+      labels:
+        app: cost-explorer-frontend
+    spec:
+      containers:
+      - name: cost-explorer-frontend
+        image: cost-explorer-frontend
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "500Mi"
+            cpu: "300m"
+        ports:
+        - containerPort: 80
+        
+
+

@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cost-explorer-deployment
-  namespace: frontend
+  name: cost-explorer-backend-deployment
+  namespace: backend
   labels:
-    app: cost-explorer
+    app: cost-explorer-backend
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
-      app: cost-explorer
+      app: cost-explorer-backend
   template:
     metadata:
       labels:
-        app: cost-explorer
+        app: cost-explorer-backend
     spec:
       containers:
-      - name: app
-        image: cost-explorer
+      - name: cost-explorer-backend
+        image: cost-explorer-backend
         imagePullPolicy: IfNotPresent
         resources:
           requests:

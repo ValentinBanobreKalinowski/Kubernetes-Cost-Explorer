@@ -7,6 +7,9 @@ rules:
 - apiGroups: [""]
   resources: ["nodes", "pods", "services", "endpoints", "persistentvolumeclaims", "persistentvolumes"]
   verbs: ["get", "watch", "list"]
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["nodes"]
+  verbs: ["get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -15,7 +18,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: default
-  namespace: frontend 
+  namespace: backend 
 roleRef:
   kind: ClusterRole
   name: dashboard-cluster-reader-role

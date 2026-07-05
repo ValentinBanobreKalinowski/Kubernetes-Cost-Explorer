@@ -6,8 +6,12 @@ build:
     push: false
 
   artifacts:
-    - image: cost-explorer
-      context: src
+    - image: cost-explorer-backend
+      context: app/backend
+      docker:
+        dockerfile: Dockerfile
+    - image: cost-explorer-frontend
+      context: app/frontend
       docker:
         dockerfile: Dockerfile
   tagPolicy:
@@ -18,6 +22,7 @@ manifests:
 
 portForward:
   - resourceType: service
-    resourceName: cluster-cost-explorer-service
+    resourceName: cost-explorer-service-frontend
+    namespace: frontend
     port: 8080
     localPort: 8080
