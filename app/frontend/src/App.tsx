@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import './App.css';
 import NodeCard, { type NodeInfo } from './NodeCard';
+import ClusterSummary, { type ClusterSummaryData } from './ClusterSummary';
 
-interface ClusterResponse {
-  clusterName: string;
+interface ClusterResponse extends ClusterSummaryData {
   timestamp: string;
   nodes: NodeInfo[];
 }
@@ -12,8 +12,11 @@ interface ErrorResponse {
   error: string;
 }
 
+const REFRESH_INTERVAL_SECONDS = 15; // k8s metrics API has a 15s scrape interval, so this is a good balance between freshness and load.
+
 function App() {
   const [data, setData] = useState<ClusterResponse | ErrorResponse | null>(null);
+  const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(REFRESH_INTERVAL_SECONDS);
 
   useEffect(() => {
     const fetchCluster = () => {
@@ -21,11 +24,19 @@ function App() {
         .then((res) => res.json())
         .then((json) => setData(json))
         .catch((err) => console.error(err));
+      setSecondsUntilRefresh(REFRESH_INTERVAL_SECONDS);
     };
 
     fetchCluster();
-    const interval = setInterval(fetchCluster, 1000);
-    return () => clearInterval(interval);
+    const refreshInterval = setInterval(fetchCluster, REFRESH_INTERVAL_SECONDS * 1000);
+    const countdownInterval = setInterval(() => {
+      setSecondsUntilRefresh((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+
+    return () => {
+      clearInterval(refreshInterval);
+      clearInterval(countdownInterval);
+    };
   }, []);
 
   if (!data) {
@@ -38,16 +49,15 @@ function App() {
 
   return (
     <div className="page">
-      <div className="summary">
-        <div className="stat">Cluster: <strong>{data.clusterName}</strong></div>
-        <div className="timestamp">Last update: {data.timestamp}</div>
-      </div>
-
       <div className="node-grid">
         {data.nodes.map((node) => (
           <NodeCard key={node.name} node={node} />
         ))}
       </div>
+
+      <div className="summary-divider" />
+
+      <ClusterSummary data={data} secondsUntilRefresh={secondsUntilRefresh} />
     </div>
   );
 }
