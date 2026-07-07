@@ -36,7 +36,7 @@ interface K8sPod {
 
 interface NodeMetrics {
     metadata: { name: string };
-    usage: { cpu: string };
+    usage: { cpu: string; memory: string };
 }
 
 interface NodeInfo {
@@ -83,6 +83,14 @@ function parseCpuToMillicores(cpu: string): number {
     return Math.round(parseFloat(cpu) * 1000);
 }
 
+// metrics.k8s.io reports memory as e.g. "123456Ki"; normalize everything to Ki.
+function parseMemoryToKi(memory: string): number {
+    if (memory.endsWith('Ki')) return parseInt(memory, 10);
+    if (memory.endsWith('Mi')) return parseInt(memory, 10) * 1024;
+    if (memory.endsWith('Gi')) return parseInt(memory, 10) * 1024 * 1024;
+    return Math.round(parseInt(memory, 10) / 1024);
+}
+
 
 app.get('/api/cluster', async (req: Request, res: Response) => {
     try {
@@ -91,12 +99,23 @@ app.get('/api/cluster', async (req: Request, res: Response) => {
         const metricsRes = await k8sClient.get<K8sList<NodeMetrics>>(`${K8S_API}/apis/metrics.k8s.io/v1beta1/nodes`);
 
         const cpuUsageByNode: Record<string, number> = {};
+        let totalCpuMillicores = 0;
+        let totalMemoryKi = 0;
         for (const metric of metricsRes.data.items) {
-            cpuUsageByNode[metric.metadata.name] = parseCpuToMillicores(metric.usage.cpu);
+            const cpu = parseCpuToMillicores(metric.usage.cpu);
+            cpuUsageByNode[metric.metadata.name] = cpu;
+            totalCpuMillicores += cpu;
+            totalMemoryKi += parseMemoryToKi(metric.usage.memory);
         }
 
         const podsByNode: Record<string, K8sPod[]> = {};
+        let frontendPods = 0;
+        let backendPods = 0;
         for (const pod of podsRes.data.items) {
+            const workload = getWorkloadName(pod);
+            if (workload === 'cost-explorer-frontend-deployment') frontendPods++;
+            if (workload === 'cost-explorer-backend-deployment') backendPods++;
+
             const nodeName = pod.spec.nodeName;
             if (!nodeName) continue;
             (podsByNode[nodeName] ??= []).push(pod);
@@ -121,6 +140,10 @@ app.get('/api/cluster', async (req: Request, res: Response) => {
             clusterName: 'k3d-project-cluster',
             nodesCount: nodesRes.data.items.length,
             podsCount: podsRes.data.items.length,
+            totalCpuMillicores,
+            totalMemoryKi,
+            frontendPods,
+            backendPods,
             timestamp: new Date().toLocaleTimeString(),
             nodes
         });

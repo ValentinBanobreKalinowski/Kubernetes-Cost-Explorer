@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import './App.css';
 import NodeCard, { type NodeInfo } from './NodeCard';
+import ClusterSummary, { type ClusterSummaryData } from './ClusterSummary';
 
-interface ClusterResponse {
-  clusterName: string;
+interface ClusterResponse extends ClusterSummaryData {
   timestamp: string;
   nodes: NodeInfo[];
 }
@@ -24,7 +24,7 @@ function App() {
     };
 
     fetchCluster();
-    const interval = setInterval(fetchCluster, 1000);
+    const interval = setInterval(fetchCluster, 15000); // Refresh every 15 seconds, k8s metrics API has a 15s scrape interval, so this is a good balance between freshness and load.
     return () => clearInterval(interval);
   }, []);
 
@@ -38,16 +38,15 @@ function App() {
 
   return (
     <div className="page">
-      <div className="summary">
-        <div className="stat">Cluster: <strong>{data.clusterName}</strong></div>
-        <div className="timestamp">Last update: {data.timestamp}</div>
-      </div>
-
       <div className="node-grid">
         {data.nodes.map((node) => (
           <NodeCard key={node.name} node={node} />
         ))}
       </div>
+
+      <div className="summary-divider" />
+
+      <ClusterSummary data={data} />
     </div>
   );
 }
