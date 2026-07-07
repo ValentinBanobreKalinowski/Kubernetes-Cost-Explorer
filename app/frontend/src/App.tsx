@@ -12,8 +12,11 @@ interface ErrorResponse {
   error: string;
 }
 
+const REFRESH_INTERVAL_SECONDS = 15; // k8s metrics API has a 15s scrape interval, so this is a good balance between freshness and load.
+
 function App() {
   const [data, setData] = useState<ClusterResponse | ErrorResponse | null>(null);
+  const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(REFRESH_INTERVAL_SECONDS);
 
   useEffect(() => {
     const fetchCluster = () => {
@@ -21,11 +24,19 @@ function App() {
         .then((res) => res.json())
         .then((json) => setData(json))
         .catch((err) => console.error(err));
+      setSecondsUntilRefresh(REFRESH_INTERVAL_SECONDS);
     };
 
     fetchCluster();
-    const interval = setInterval(fetchCluster, 15000); // Refresh every 15 seconds, k8s metrics API has a 15s scrape interval, so this is a good balance between freshness and load.
-    return () => clearInterval(interval);
+    const refreshInterval = setInterval(fetchCluster, REFRESH_INTERVAL_SECONDS * 1000);
+    const countdownInterval = setInterval(() => {
+      setSecondsUntilRefresh((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+
+    return () => {
+      clearInterval(refreshInterval);
+      clearInterval(countdownInterval);
+    };
   }, []);
 
   if (!data) {
@@ -46,7 +57,7 @@ function App() {
 
       <div className="summary-divider" />
 
-      <ClusterSummary data={data} />
+      <ClusterSummary data={data} secondsUntilRefresh={secondsUntilRefresh} />
     </div>
   );
 }
