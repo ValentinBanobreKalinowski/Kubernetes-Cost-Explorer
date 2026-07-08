@@ -21,8 +21,8 @@ spec:
     scaleDown:
       stabilizationWindowSeconds: {{ .Values.scaleDownStabilizationWindowSeconds }}
       policies:
-      - type: Pods
-        value: {{ .Values.scaleDownPods }}
+      - type: Percent
+        value: {{ .Values.scaleDownPercent }}
         periodSeconds: {{ .Values.scaleDownPeriodSeconds }}
     scaleUp:
       stabilizationWindowSeconds: {{ .Values.scaleUpStabilizationWindowSeconds }}
