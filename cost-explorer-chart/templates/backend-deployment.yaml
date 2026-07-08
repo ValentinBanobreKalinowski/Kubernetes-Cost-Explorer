@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.backendDeploymentName }}
+  namespace: {{ .Values.backendNamespaceName }}
+  labels:
+    app: {{ .Values.backendImageName }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.backendImageName }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.backendImageName }}
+    spec:
+      containers:
+      - name: {{ .Values.backendImageName }}
+        image: {{ .Values.backendImageName }}
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            memory: {{ .Values.requests.memory | quote }}
+            cpu: {{ .Values.requests.cpu | quote }}
+          limits:
+            memory: {{ .Values.limits.memory | quote }}
+            cpu: {{ .Values.limits.cpu | quote }}
+        ports:
+        - containerPort: 3000
+        
+
+

@@ -1,8 +1,8 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: cost-explorer-frontend-ingress
-  namespace: frontend
+  name: {{ .Values.frontendIngressName }}
+  namespace: {{ .Values.frontendNamespaceName }}
   annotations:
     traefik.ingress.kubernetes.io/rewrite-target: /
 spec:
@@ -14,6 +14,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: cost-explorer-service-frontend
+            name: {{ .Values.frontendServiceName }}
             port:
               number: 8080

@@ -1,0 +1,43 @@
+# Amount of replicas for the backend deployment and frontend deployment
+replicaCount: 3
+minReplicas: 3
+maxReplicas: 30
+
+# Stabilization window seconds for scaling up and down
+scaleUpStabilizationWindowSeconds: 60
+scaleDownStabilizationWindowSeconds: 60
+
+# Percentage of pods to scale up and down once
+scaleUpPercent: 500
+scaleDownPercent: 100
+
+# Number of seconds to wait before scaling up and down
+scaleUpPeriodSeconds: 10
+scaleDownPeriodSeconds: 15
+
+# Average CPU utilization target for the HPA
+cpuAverageUtilization: 50
+
+# Backend resource names
+backendImageName: "cost-explorer-backend"
+backendDeploymentName: "cost-explorer-backend-deployment"
+backendHPAName: "cost-explorer-backend-hpa"
+backendNamespaceName: "backend"
+backendServiceName: "cost-explorer-backend-service"
+
+# Frontend resource names
+frontendImageName: "cost-explorer-frontend"
+frontendDeploymentName: "cost-explorer-frontend-deployment"
+frontendHPAName: "cost-explorer-frontend-hpa"
+frontendNamespaceName: "frontend"
+frontendServiceName: "cost-explorer-frontend-service"
+frontendIngressName: "cost-explorer-frontend-ingress"
+
+# Resource requests and limits for the backend and frontend containers
+requests:
+  memory: "256Mi"
+  cpu: "200m"
+limits:
+  memory: "500Mi"
+  cpu: "300m"
+
