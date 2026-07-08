@@ -1,0 +1,11 @@
+# Comment for now because etcd knows too late that the namespaces were created. For now, i will create them imperatively.
+
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   name: frontend
+# ---
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   name: backend

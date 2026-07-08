@@ -1,0 +1,32 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  namespace: {{ .Values.frontendNamespaceName }}
+  name: {{ .Values.frontendHPAName }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Values.frontendDeploymentName }}
+  minReplicas: {{ .Values.minReplicas }}
+  maxReplicas: {{ .Values.maxReplicas }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.cpuAverageUtilization }}
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: {{ .Values.scaleDownStabilizationWindowSeconds }}
+      policies:
+      - type: Pods
+        value: {{ .Values.scaleDownPods }}
+        periodSeconds: {{ .Values.scaleDownPeriodSeconds }}
+    scaleUp:
+      stabilizationWindowSeconds: {{ .Values.scaleUpStabilizationWindowSeconds }}
+      policies:
+      - type: Percent
+        value: {{ .Values.scaleUpPercent }}
+        periodSeconds: {{ .Values.scaleUpPeriodSeconds }}
