@@ -19,6 +19,14 @@ spec:
       - name: {{ .Values.backendImageName }}
         image: {{ .Values.backendImageName }}
         imagePullPolicy: IfNotPresent
+        envFrom:
+        - secretRef:
+            name: {{ .Values.backendPostgresSecretName }}
+        env:
+        - name: POSTGRES_HOST
+          value: {{ .Values.backendPostgresServiceName }}
+        - name: POSTGRES_PORT
+          value: "5432"
         resources:
           requests:
             memory: {{ .Values.requests.memory | quote }}
@@ -28,6 +36,13 @@ spec:
             cpu: {{ .Values.limits.cpu | quote }}
         ports:
         - containerPort: 3000
+      initContainers:
+      - name: wait-for-postgres
+        image: {{ .Values.backendPostgresImageName }}
+        command:
+          - sh
+          - -c
+          - until pg_isready -h {{ .Values.backendPostgresServiceName }} -p 5432; do echo waiting for postgres; sleep 2; done
         
 
 

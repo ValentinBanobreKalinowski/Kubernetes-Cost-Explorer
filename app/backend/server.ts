@@ -2,9 +2,39 @@ import express, { Request, Response } from 'express';
 import axios, { AxiosInstance } from 'axios';
 import fs from 'fs';
 import https from 'https';
+import { Pool } from 'pg';
+
 
 const app = express();
 const PORT = 3000;
+
+const pool = new Pool({
+    host: process.env.POSTGRES_HOST,
+    port: Number(process.env.POSTGRES_PORT ?? 5432),
+    user: process.env.POSTGRES_USER,
+    password: process.env.POSTGRES_PASSWORD,
+    database: process.env.POSTGRES_DB
+});
+
+// For now we'll hardcode the cost rates, but when its deployed to aws we will get real data.
+const CPU_HOUR_RATE = Number(process.env.CPU_HOUR_RATE ?? 0.03);
+const MEMORY_GB_HOUR_RATE = Number(process.env.MEMORY_GB_HOUR_RATE ?? 0.004);
+const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000;
+
+async function initDb(): Promise<void> {
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS cost_snapshots (
+            id SERIAL PRIMARY KEY,
+            snapshot_time TIMESTAMPTZ NOT NULL DEFAULT now(),
+            namespace TEXT NOT NULL,
+            pod_count INTEGER NOT NULL,
+            cpu_request_millicores INTEGER NOT NULL,
+            memory_request_ki INTEGER NOT NULL,
+            estimated_hourly_cost NUMERIC(10, 4) NOT NULL
+        );
+    `);
+    console.log('Postgres ready: cost_snapshots table present.');
+}
 
 // Internal Kubernetes API cluster address
 const K8S_API = 'https://kubernetes.default.svc';
@@ -27,11 +57,25 @@ interface K8sNode {
 interface K8sPod {
     metadata: {
         name: string;
+        namespace: string;
         ownerReferences?: { kind: string; name: string }[];
     };
     spec: {
         nodeName?: string;
+        containers: {
+            resources?: {
+                requests?: { cpu?: string; memory?: string };
+            };
+        }[];
     };
+}
+
+interface NamespaceSnapshot {
+    namespace: string;
+    podCount: number;
+    cpuRequestMillicores: number;
+    memoryRequestKi: number;
+    estimatedHourlyCost: number;
 }
 
 interface NodeMetrics {
@@ -91,6 +135,46 @@ function parseMemoryToKi(memory: string): number {
     return Math.round(parseInt(memory, 10) / 1024);
 }
 
+function computeNamespaceSnapshots(pods: K8sPod[]): NamespaceSnapshot[] {
+    const byNamespace: Record<string, { podCount: number; cpuRequestMillicores: number; memoryRequestKi: number }> = {};
+
+    for (const pod of pods) {
+        const ns = pod.metadata.namespace;
+        const entry = (byNamespace[ns] ??= { podCount: 0, cpuRequestMillicores: 0, memoryRequestKi: 0 });
+        entry.podCount++;
+
+        for (const container of pod.spec.containers) {
+            const requests = container.resources?.requests;
+            if (requests?.cpu) entry.cpuRequestMillicores += parseCpuToMillicores(requests.cpu);
+            if (requests?.memory) entry.memoryRequestKi += parseMemoryToKi(requests.memory);
+        }
+    }
+
+    return Object.entries(byNamespace).map(([namespace, entry]) => {
+        const cpuCores = entry.cpuRequestMillicores / 1000;
+        const memoryGi = entry.memoryRequestKi / (1024 * 1024);
+        const estimatedHourlyCost = cpuCores * CPU_HOUR_RATE + memoryGi * MEMORY_GB_HOUR_RATE;
+        return { namespace, ...entry, estimatedHourlyCost };
+    });
+}
+
+async function takeSnapshot(): Promise<void> {
+    try {
+        const podsRes = await k8sClient.get<K8sList<K8sPod>>(`${K8S_API}/api/v1/pods`);
+        const snapshots = computeNamespaceSnapshots(podsRes.data.items);
+
+        for (const snap of snapshots) {
+            await pool.query(
+                `INSERT INTO cost_snapshots (namespace, pod_count, cpu_request_millicores, memory_request_ki, estimated_hourly_cost)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [snap.namespace, snap.podCount, snap.cpuRequestMillicores, snap.memoryRequestKi, snap.estimatedHourlyCost]
+            );
+        }
+        console.log(`Snapshot saved: ${snapshots.length} namespace(s).`);
+    } catch (err: any) {
+        console.error('Snapshot failed:', err.message);
+    }
+}
 
 app.get('/api/cluster', async (req: Request, res: Response) => {
     try {
@@ -167,3 +251,10 @@ app.get('/api/cluster', async (req: Request, res: Response) => {
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
+
+initDb()
+    .then(() => {
+        takeSnapshot();
+        setInterval(takeSnapshot, SNAPSHOT_INTERVAL_MS);
+    })
+    .catch((err) => console.error('Failed to initialize database:', err.message));
