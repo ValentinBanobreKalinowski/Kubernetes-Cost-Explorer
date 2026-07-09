@@ -21,6 +21,10 @@ deploy:
     releases:
       - name: cost-explorer
         chartPath: cost-explorer-chart
+        setValueTemplates:
+          backendPostgresPassword: "{{.POSTGRES_PASSWORD}}"
+          backendPostgresUser: "{{.POSTGRES_USER}}"
+          backendPostgresDb: "{{.POSTGRES_DB}}"
 
 portForward:
   - resourceType: service
