@@ -247,6 +247,21 @@ app.get('/api/cluster', async (req: Request, res: Response) => {
     }
 });
 
+app.get('/api/cost-history', async (req: Request, res: Response) => {
+    try {
+        const result = await pool.query(
+            `SELECT snapshot_time, namespace, pod_count, cpu_request_millicores, memory_request_ki, estimated_hourly_cost
+             FROM cost_snapshots
+             WHERE snapshot_time > now() - interval '24 hours'
+             ORDER BY snapshot_time ASC`
+        );
+        res.json(result.rows);
+    } catch (err: any) {
+        console.error('Cost history query failed:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Start HTTP server
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
