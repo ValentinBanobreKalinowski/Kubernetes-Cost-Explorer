@@ -1,3 +1,29 @@
+.theme-switch {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.theme-switch button {
+  flex: 1;
+  padding: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-bg);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.theme-switch button.active {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
 .dashboard {
   display: flex;
   flex-direction: column;
