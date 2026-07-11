@@ -257,7 +257,7 @@ function CostHistory() {
         <div className="cost-history-averages">
           {series.map((s) => (
             <div key={s.namespace} className="cost-history-average-item" style={{ color: s.color }}>
-              AVG: {formatCost(s.average)}
+              {s.namespace} avg: {formatCost(s.average)}
             </div>
           ))}
         </div>
