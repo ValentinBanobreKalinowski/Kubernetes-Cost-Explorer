@@ -16,7 +16,7 @@ spec:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: {{ .Values.cpuAverageUtilization }}
+        averageUtilization: {{ .Values.frontendCpuAverageUtilization }}
   behavior:
     scaleDown:
       stabilizationWindowSeconds: {{ .Values.scaleDownStabilizationWindowSeconds }}

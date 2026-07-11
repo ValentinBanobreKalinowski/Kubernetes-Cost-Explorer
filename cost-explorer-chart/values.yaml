@@ -45,11 +45,21 @@ frontendNamespaceName: "frontend"
 frontendServiceName: "cost-explorer-frontend-service"
 frontendIngressName: "cost-explorer-frontend-ingress"
 
-# Resource requests and limits for the backend and frontend containers
+# Resource requests and limits for the backend container
 requests:
   memory: "256Mi"
   cpu: "200m"
 limits:
   memory: "500Mi"
   cpu: "300m"
+
+# Frontend container is nginx serving static files - kept small so HPA scaling is visible under load
+frontendRequests:
+  memory: "32Mi"
+  cpu: "20m"
+frontendLimits:
+  memory: "64Mi"
+  cpu: "100m"
+
+frontendCpuAverageUtilization: 20
 
