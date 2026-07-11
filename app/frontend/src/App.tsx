@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import './App.css';
 import NodeCard, { type NodeInfo } from './NodeCard';
 import ClusterSummary, { type ClusterSummaryData } from './ClusterSummary';
+import CostHistory from './CostHistory';
 
 interface ClusterResponse extends ClusterSummaryData {
   timestamp: string;
@@ -24,19 +25,27 @@ function App() {
         .then((res) => res.json())
         .then((json) => setData(json))
         .catch((err) => console.error(err));
-      setSecondsUntilRefresh(REFRESH_INTERVAL_SECONDS);
     };
 
-    fetchCluster();
-    const refreshInterval = setInterval(fetchCluster, REFRESH_INTERVAL_SECONDS * 1000);
-    const countdownInterval = setInterval(() => {
-      setSecondsUntilRefresh((s) => (s > 0 ? s - 1 : 0));
-    }, 1000);
+    // derived from Date.now() so a page refresh doesn't reset the phase
+    let lastFetchedBoundary = -1;
 
-    return () => {
-      clearInterval(refreshInterval);
-      clearInterval(countdownInterval);
+    const tick = () => {
+      const nowSeconds = Date.now() / 1000;
+      const secondsIntoWindow = nowSeconds % REFRESH_INTERVAL_SECONDS;
+      setSecondsUntilRefresh(Math.ceil(REFRESH_INTERVAL_SECONDS - secondsIntoWindow));
+
+      const currentBoundary = Math.floor(nowSeconds / REFRESH_INTERVAL_SECONDS);
+      if (currentBoundary !== lastFetchedBoundary) {
+        lastFetchedBoundary = currentBoundary;
+        fetchCluster();
+      }
     };
+
+    tick();
+    const clockInterval = setInterval(tick, 1000);
+
+    return () => clearInterval(clockInterval);
   }, []);
 
   if (!data) {
@@ -48,17 +57,21 @@ function App() {
   }
 
   return (
-    <div className="page">
-      <div className="node-grid">
-        {data.nodes.map((node) => (
-          <NodeCard key={node.name} node={node} />
-        ))}
+    <>
+      <div className="page">
+        <div className="node-grid">
+          {data.nodes.map((node) => (
+            <NodeCard key={node.name} node={node} />
+          ))}
+        </div>
+
+        <div className="summary-divider" />
+
+        <ClusterSummary data={data} secondsUntilRefresh={secondsUntilRefresh} />
       </div>
 
-      <div className="summary-divider" />
-
-      <ClusterSummary data={data} secondsUntilRefresh={secondsUntilRefresh} />
-    </div>
+      <CostHistory />
+    </>
   );
 }
 

@@ -21,11 +21,11 @@ spec:
         imagePullPolicy: IfNotPresent
         resources:
           requests:
-            memory: {{ .Values.requests.memory | quote }}
-            cpu: {{ .Values.requests.cpu | quote }}
+            memory: {{ .Values.frontendRequests.memory | quote }}
+            cpu: {{ .Values.frontendRequests.cpu | quote }}
           limits:
-            memory: {{ .Values.limits.memory | quote }}
-            cpu: {{ .Values.limits.cpu | quote }}
+            memory: {{ .Values.frontendLimits.memory | quote }}
+            cpu: {{ .Values.frontendLimits.cpu | quote }}
         ports:
         - containerPort: 80
         

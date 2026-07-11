@@ -129,3 +129,122 @@
   color: var(--text);
   opacity: 0.7;
 }
+
+.cost-history {
+  margin: 0 20px 40px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--code-bg);
+}
+
+.cost-history-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.cost-history-title {
+  font-size: 16px;
+  color: var(--text-h);
+}
+
+.cost-history-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cost-history-toggle-group {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.cost-history-toggle-group button {
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.cost-history-toggle-group button.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.cost-history-chart-wrap {
+  position: relative;
+}
+
+.cost-history-chart {
+  width: 100%;
+  height: 236px;
+}
+
+.cost-history-axis {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.cost-history-gridline {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.cost-history-tick-label {
+  fill: var(--text);
+  font-size: 9px;
+}
+
+.cost-history-countdown-label {
+  fill: var(--accent);
+  font-size: 9px;
+  opacity: 0.8;
+}
+
+.cost-history-averages {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.cost-history-average-item {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cost-history-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.cost-history-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.cost-history-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+}

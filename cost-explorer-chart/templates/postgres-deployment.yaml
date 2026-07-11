@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.backendPostgresDeploymentName }}
+  namespace: {{ .Values.backendNamespaceName }}
+  labels:
+    app: {{ .Values.backendPostgresLabel }}
+spec:
+  replicas: 1 # Only one, as we don't want multiple Postgres instances running
+  selector:
+    matchLabels:
+      app: {{ .Values.backendPostgresLabel }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.backendPostgresLabel }}
+    spec:
+      volumes:
+      - name: mypd
+        persistentVolumeClaim:
+          claimName: {{ .Values.backendPvcName }}
+      containers:
+      - name: {{ .Values.backendPostgresLabel }}
+        image: {{ .Values.backendPostgresImageName }}
+        envFrom:
+        - secretRef:
+            name: {{ .Values.backendPostgresSecretName }}
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: mypd
+          mountPath: "/var/lib/postgresql/data"
+          
