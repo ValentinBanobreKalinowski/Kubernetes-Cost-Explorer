@@ -32,3 +32,35 @@ portForward:
     namespace: frontend
     port: 8080
     localPort: 8080
+
+profiles:
+  - name: eks
+    build:
+      local:
+        push: true
+      artifacts:
+        - image: cost-explorer-backend
+          context: app/backend
+          docker:
+            dockerfile: Dockerfile
+        - image: cost-explorer-frontend
+          context: app/frontend
+          docker:
+            dockerfile: Dockerfile
+      tagPolicy:
+        sha256: {}
+    deploy:
+      helm:
+        releases:
+          - name: cost-explorer
+            chartPath: cost-explorer-chart
+            setValueTemplates:
+              backendPostgresPassword: "{{.POSTGRES_PASSWORD}}"
+              backendPostgresUser: "{{.POSTGRES_USER}}"
+              backendPostgresDb: "{{.POSTGRES_DB}}"
+              backendImage: "{{.IMAGE_FULLY_QUALIFIED_cost_explorer_backend}}"
+              frontendImage: "{{.IMAGE_FULLY_QUALIFIED_cost_explorer_frontend}}"
+            setValues:
+              frontendServiceType: LoadBalancer
+              postgresPersistentStorage: "false"
+    portForward: []

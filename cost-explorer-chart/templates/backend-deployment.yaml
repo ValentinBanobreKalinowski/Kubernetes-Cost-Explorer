@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: {{ .Values.backendImageName }}
-        image: {{ .Values.backendImageName }}
+        image: {{ .Values.backendImage }}
         imagePullPolicy: IfNotPresent
         envFrom:
         - secretRef:

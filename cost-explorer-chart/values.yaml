@@ -20,6 +20,10 @@ cpuAverageUtilization: 50
 
 # Backend resource names
 backendImageName: "cost-explorer-backend"
+
+# Full image ref (repo[:tag]) actually used by the deployment. Defaults to the
+# bare name for local k3d/skaffold builds; overridden with a registry+tag for EKS.
+backendImage: "cost-explorer-backend"
 backendPostgresImageName: "postgres:17-alpine"
 backendPostgresLabel: "postgres"
 backendDeploymentName: "cost-explorer-backend-deployment"
@@ -33,17 +37,29 @@ backendPostgresServiceName: "cost-explorer-db-service"
 
 backendPvcName: "postgres-pvc"
 
+# Whether postgres data persists on a PVC (needs a working StorageClass/CSI driver)
+# or lives on an ephemeral emptyDir (lost on pod restart - fine until RDS is wired up).
+postgresPersistentStorage: true
+
 # Postgres credentials
 backendPostgresSecretName: "cost-explorer-db-secret"
 
 
 # Frontend resource names
 frontendImageName: "cost-explorer-frontend"
+
+# Full image ref (repo[:tag]) actually used by the deployment. Defaults to the
+# bare name for local k3d/skaffold builds; overridden with a registry+tag for EKS.
+frontendImage: "cost-explorer-frontend"
 frontendDeploymentName: "cost-explorer-frontend-deployment"
 frontendHPAName: "cost-explorer-frontend-hpa"
 frontendNamespaceName: "frontend"
 frontendServiceName: "cost-explorer-frontend-service"
 frontendIngressName: "cost-explorer-frontend-ingress"
+
+# NodePort for local k3d dev; set to LoadBalancer for a real external IP on EKS.
+frontendServiceType: "NodePort"
+frontendNodePort: 30080
 
 # Resource requests and limits for the backend container
 requests:

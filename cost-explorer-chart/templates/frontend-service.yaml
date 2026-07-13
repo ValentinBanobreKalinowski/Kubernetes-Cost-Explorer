@@ -4,10 +4,12 @@ metadata:
   name: {{ .Values.frontendServiceName }}
   namespace: {{ .Values.frontendNamespaceName }}
 spec:
-  type: NodePort
+  type: {{ .Values.frontendServiceType }}
   selector:
     app: {{ .Values.frontendImageName }}
   ports:
     - port: 8080
       targetPort: 80
-      nodePort: 30080
+      {{- if eq .Values.frontendServiceType "NodePort" }}
+      nodePort: {{ .Values.frontendNodePort }}
+      {{- end }}

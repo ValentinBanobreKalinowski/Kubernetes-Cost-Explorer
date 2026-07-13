@@ -17,8 +17,12 @@ spec:
     spec:
       volumes:
       - name: mypd
+        {{- if .Values.postgresPersistentStorage }}
         persistentVolumeClaim:
           claimName: {{ .Values.backendPvcName }}
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
       containers:
       - name: {{ .Values.backendPostgresLabel }}
         image: {{ .Values.backendPostgresImageName }}
