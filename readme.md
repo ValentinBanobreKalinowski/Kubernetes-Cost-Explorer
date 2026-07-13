@@ -30,8 +30,8 @@ The application will monitor cluster metrics such as:
 
 ## Roadmap
 
-- Implement the basics of the application on a local cluter with k3d. <- Here now
-- Move the cluster to AWS, declare the infrastructure in code with Terraform.
+- Implement the basics of the application on a local cluter with k3d. DONE
+- Move the cluster to AWS, declare the infrastructure in code with Terraform. <- Here now
 - Implement last functionalities, connect prometheus and graphana as well as github actions.
 
 
