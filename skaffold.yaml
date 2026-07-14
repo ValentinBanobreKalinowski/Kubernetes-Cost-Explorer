@@ -1,6 +1,9 @@
 apiVersion: skaffold/v4beta13
 kind: Config
 
+# Skaffold configuration for the Kubernetes Cost Explorer project
+
+# Local development profile for deploying to a local Kubernetes cluster
 build:
   local:
     push: false
@@ -33,6 +36,7 @@ portForward:
     port: 8080
     localPort: 8080
 
+# EKS profile for deploying to AWS EKS with RDS instead of in-cluster Postgres
 profiles:
   - name: eks
     build:
@@ -60,7 +64,9 @@ profiles:
               backendPostgresDb: "{{.POSTGRES_DB}}"
               backendImage: "{{.IMAGE_FULLY_QUALIFIED_cost_explorer_backend}}"
               frontendImage: "{{.IMAGE_FULLY_QUALIFIED_cost_explorer_frontend}}"
+              backendPostgresHost: "{{.POSTGRES_HOST}}" # Use RDS endpoint instead of in-cluster Postgres
             setValues:
               frontendServiceType: LoadBalancer
-              postgresPersistentStorage: "false"
-    portForward: []
+              deployInClusterPostgres: "false" # Use RDS instead of in-cluster Postgres
+              backendPostgresSsl: "true" # RDS enforces SSL
+    portForward: [] # No port-forwarding for EKS, as the frontend is exposed via LoadBalancer

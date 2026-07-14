@@ -60,6 +60,19 @@ module "eks" {
   subnet_ids = module.vpc.public_subnet_ids
 }
 
+module "rds" {
+  source = "./modules/rds"
+
+  name                       = "kubernetes-cluster-metrics"
+  vpc_id                     = module.vpc.vpc_id
+  subnet_ids                 = module.vpc.public_subnet_ids
+  allowed_security_group_ids = [module.eks.cluster_security_group_id]
+
+  db_name  = var.postgres_db
+  username = var.postgres_user
+  password = var.postgres_password
+}
+
 resource "aws_ecr_repository" "backend" {
   name                 = "cost-explorer-backend"
   image_tag_mutability = "MUTABLE"
@@ -71,7 +84,7 @@ resource "aws_ecr_repository" "frontend" {
 }
 
 # App namespaces - created here (not by the Helm chart) so they exist and are
-# fully established before any `skaffold`/`helm` deploy runs against the cluster.
+# fully established before any skaffold / helm deploy runs against the cluster.
 resource "kubernetes_namespace" "backend" {
   metadata {
     name = "backend"

@@ -15,3 +15,9 @@ output "ecr_backend_url" {
 output "ecr_frontend_url" {
   value = aws_ecr_repository.frontend.repository_url
 }
+output "rds_address" {
+  value = module.rds.address
+}
+output "region" {
+  value = var.region
+}

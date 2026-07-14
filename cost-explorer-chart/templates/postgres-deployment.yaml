@@ -1,3 +1,4 @@
+{{- if .Values.deployInClusterPostgres }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -34,4 +35,4 @@ spec:
         volumeMounts:
         - name: mypd
           mountPath: "/var/lib/postgresql/data"
-          
+{{- end }}

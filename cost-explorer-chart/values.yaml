@@ -37,9 +37,20 @@ backendPostgresServiceName: "cost-explorer-db-service"
 
 backendPvcName: "postgres-pvc"
 
-# Whether postgres data persists on a PVC (needs a working StorageClass/CSI driver)
-# or lives on an ephemeral emptyDir (lost on pod restart - fine until RDS is wired up).
 postgresPersistentStorage: true
+
+# Whether to run Postgres as an in-cluster Deployment (local k3d dev) or
+# connect to an external instance like RDS instead. When false, the
+# postgres Deployment/Service/PVC are skipped entirely and backendPostgresHost
+# must point at the external host.
+deployInClusterPostgres: true
+
+# Postgres host the backend connects to. Empty defaults to the in-cluster
+# service name; set to the RDS endpoint when deployInClusterPostgres is false.
+backendPostgresHost: ""
+
+# RDS enforces SSL by default; the local in-cluster Postgres doesn't support it.
+backendPostgresSsl: false
 
 # Postgres credentials
 backendPostgresSecretName: "cost-explorer-db-secret"

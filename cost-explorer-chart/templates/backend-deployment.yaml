@@ -24,9 +24,11 @@ spec:
             name: {{ .Values.backendPostgresSecretName }}
         env:
         - name: POSTGRES_HOST
-          value: {{ .Values.backendPostgresServiceName }}
+          value: {{ .Values.backendPostgresHost | default .Values.backendPostgresServiceName | quote }}
         - name: POSTGRES_PORT
           value: "5432"
+        - name: POSTGRES_SSL
+          value: {{ .Values.backendPostgresSsl | quote }}
         resources:
           requests:
             memory: {{ .Values.requests.memory | quote }}
@@ -42,7 +44,7 @@ spec:
         command:
           - sh
           - -c
-          - until pg_isready -h {{ .Values.backendPostgresServiceName }} -p 5432; do echo waiting for postgres; sleep 2; done
+          - until pg_isready -h {{ .Values.backendPostgresHost | default .Values.backendPostgresServiceName }} -p 5432; do echo waiting for postgres; sleep 2; done
         
 
 
