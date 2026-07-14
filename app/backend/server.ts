@@ -13,7 +13,9 @@ const pool = new Pool({
     port: Number(process.env.POSTGRES_PORT ?? 5432),
     user: process.env.POSTGRES_USER,
     password: process.env.POSTGRES_PASSWORD,
-    database: process.env.POSTGRES_DB
+    database: process.env.POSTGRES_DB,
+    // RDS enforces SSL by default; the in-cluster dev Postgres doesn't support it.
+    ssl: process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: false } : undefined
 });
 
 // For now we'll hardcode the cost rates, but when its deployed to aws we will get real data.

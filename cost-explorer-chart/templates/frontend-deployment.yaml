@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: {{ .Values.frontendImageName }}
-        image: {{ .Values.frontendImageName }}
+        image: {{ .Values.frontendImage }}
         imagePullPolicy: IfNotPresent
         resources:
           requests:

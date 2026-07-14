@@ -2,6 +2,13 @@ node_modules/
 dist/
 dist-ssr/
 .env
+
+# Terraform files
+*.tfstate
+*.tfstate.*
+**/.terraform/*
+
+
 # Logs
 logs
 *.log
