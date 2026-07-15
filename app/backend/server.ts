@@ -3,7 +3,7 @@ import axios, { AxiosInstance } from 'axios';
 import fs from 'fs';
 import https from 'https';
 import { Pool } from 'pg';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 
 
 const app = express();
@@ -25,7 +25,7 @@ const MEMORY_GB_HOUR_RATE = Number(process.env.MEMORY_GB_HOUR_RATE ?? 0.004);
 const SNAPSHOT_INTERVAL_MS = 15 * 1000;
 const REPORT_INTERVAL_MS = 60 * 60 * 1000; // Each hour
 const S3_REPORTS_BUCKET = process.env.S3_REPORTS_BUCKET;
-const s3Client = S3_REPORTS_BUCKET ? new S3Client{{ region: process.env.AWS_REGION }} : null
+const s3Client = S3_REPORTS_BUCKET ? new S3Client({ region: process.env.AWS_REGION }) : null
 
 async function initDb(): Promise<void> {
     await pool.query(`
@@ -218,7 +218,7 @@ async function generateHourlyReport(): Promise<void> {
          console.log(`Hourly report uploaded to s3://${S3_REPORTS_BUCKET}: ${report.namespaces.length} namespace(s).`);
     } catch (err: any) {
         console.error('Hourly report failed:', err.message);
-}
+}}
 
 app.get('/api/cluster', async (req: Request, res: Response) => {
     try {
@@ -320,5 +320,15 @@ initDb()
             takeSnapshot();
             setInterval(takeSnapshot, SNAPSHOT_INTERVAL_MS);
         }, msUntilNextBoundary);
+
+        if (s3Client) {
+            const msUntilNextReportBoundary = REPORT_INTERVAL_MS - (Date.now() % REPORT_INTERVAL_MS);
+            setTimeout(() => {
+                generateHourlyReport();
+                setInterval(generateHourlyReport, REPORT_INTERVAL_MS);
+            }, msUntilNextReportBoundary);
+        } else {
+            console.warn('S3_REPORTS_BUCKET not set - hourly cost reports disabled.');
+        }
     })
     .catch((err) => console.error('Failed to initialize database:', err.message));
