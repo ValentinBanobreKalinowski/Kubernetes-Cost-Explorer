@@ -23,7 +23,9 @@ const pool = new Pool({
 const CPU_HOUR_RATE = Number(process.env.CPU_HOUR_RATE ?? 0.03);
 const MEMORY_GB_HOUR_RATE = Number(process.env.MEMORY_GB_HOUR_RATE ?? 0.004);
 const SNAPSHOT_INTERVAL_MS = 15 * 1000;
-const REPORT_INTERVAL_MS = 60 * 60 * 1000; // Each hour
+const REPORT_INTERVAL_MINUTES = Number(process.env.REPORT_INTERVAL_MINUTES ?? 60);
+const REPORT_INTERVAL_MS = REPORT_INTERVAL_MINUTES * 60 * 1000;
+
 const S3_REPORTS_BUCKET = process.env.S3_REPORTS_BUCKET;
 const s3Client = S3_REPORTS_BUCKET ? new S3Client({ region: process.env.AWS_REGION }) : null
 

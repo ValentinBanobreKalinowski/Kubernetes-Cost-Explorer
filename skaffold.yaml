@@ -72,4 +72,5 @@ profiles:
               deployInClusterPostgres: "false" # Use RDS instead of in-cluster Postgres
               backendPostgresSsl: "true" # RDS enforces SSL
               backendServiceAccountName: "backend-service-account"
+              reportIntervalMinutes: 5 # Not gonna wait an hour, i am a poor student :--c.
     portForward: [] # No port-forwarding for EKS, as the frontend is exposed via LoadBalancer

@@ -65,7 +65,7 @@ backendServiceAccountName: "default"
 # no IRSA credentials to write to S3 we leave it empty.
 s3ReportsBucket: ""
 awsRegion: ""
-
+reportIntervalMinutes: 60
 
 # Frontend resource names
 frontendImageName: "cost-explorer-frontend"
