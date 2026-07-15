@@ -55,6 +55,17 @@ backendPostgresSsl: false
 # Postgres credentials
 backendPostgresSecretName: "cost-explorer-db-secret"
 
+# ServiceAccount the backend pods run as. Local k3d dev uses
+# the auto-created "default" SA, EKS deploys override this to 
+# the Terraform-created SA that's annotated with the IRSA role for S3 report uploads.
+backendServiceAccountName: "default"
+
+# S3 bucket for hourly cost reports. Empty means reporting is disabled - only
+# set when deploying to AWS via the EKS profile. Since local cluster has 
+# no IRSA credentials to write to S3 we leave it empty.
+s3ReportsBucket: ""
+awsRegion: ""
+
 
 # Frontend resource names
 frontendImageName: "cost-explorer-frontend"

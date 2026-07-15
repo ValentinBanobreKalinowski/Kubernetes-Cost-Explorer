@@ -65,8 +65,11 @@ profiles:
               backendImage: "{{.IMAGE_FULLY_QUALIFIED_cost_explorer_backend}}"
               frontendImage: "{{.IMAGE_FULLY_QUALIFIED_cost_explorer_frontend}}"
               backendPostgresHost: "{{.POSTGRES_HOST}}" # Use RDS endpoint instead of in-cluster Postgres
+              s3ReportsBucket: "{{.S3_REPORTS_BUCKET}}"
+              awsRegion: "{{.REGION}}"
             setValues:
               frontendServiceType: LoadBalancer
               deployInClusterPostgres: "false" # Use RDS instead of in-cluster Postgres
               backendPostgresSsl: "true" # RDS enforces SSL
+              backendServiceAccountName: "backend-service-account"
     portForward: [] # No port-forwarding for EKS, as the frontend is exposed via LoadBalancer

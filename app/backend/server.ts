@@ -3,6 +3,7 @@ import axios, { AxiosInstance } from 'axios';
 import fs from 'fs';
 import https from 'https';
 import { Pool } from 'pg';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 
 const app = express();
@@ -22,6 +23,9 @@ const pool = new Pool({
 const CPU_HOUR_RATE = Number(process.env.CPU_HOUR_RATE ?? 0.03);
 const MEMORY_GB_HOUR_RATE = Number(process.env.MEMORY_GB_HOUR_RATE ?? 0.004);
 const SNAPSHOT_INTERVAL_MS = 15 * 1000;
+const REPORT_INTERVAL_MS = 60 * 60 * 1000; // Each hour
+const S3_REPORTS_BUCKET = process.env.S3_REPORTS_BUCKET;
+const s3Client = S3_REPORTS_BUCKET ? new S3Client{{ region: process.env.AWS_REGION }} : null
 
 async function initDb(): Promise<void> {
     await pool.query(`
@@ -183,6 +187,37 @@ async function takeSnapshot(): Promise<void> {
     } catch (err: any) {
         console.error('Snapshot failed:', err.message);
     }
+}
+
+async function generateHourlyReport(): Promise<void> {
+    if (!s3Client) return; 
+    try {
+        const result = await pool.query<{ namespace: string; avg_hourly_cost: number; snapshot_count: string}>(
+            `SELECT namespace, AVG(estimated_hourly_cost)::double precision AS avg_hourly_cost,
+            COUNT(*) AS snapshot_count FROM cost_snapshots WHERE snapshot_time > now() - interval '1 hour' GROUP BY namespace ORDER BY namespace`
+        );
+
+        const windowEnd = new Date();
+        const report = {
+            generatedAt: windowEnd.toISOString(),
+            windowStart: new Date(windowEnd.getTime() - REPORT_INTERVAL_MS).toISOString(),
+            windowEnd: windowEnd.toISOString(),
+            namespaces: result.rows.map((row) => ({
+                namespace: row.namespace,
+                avgHourlyCost: row.avg_hourly_cost,
+                snapshotCount: Number(row.snapshot_count)
+            }))
+        };
+
+         await s3Client.send(new PutObjectCommand({
+            Bucket: S3_REPORTS_BUCKET,
+            Key: `reports/hourly/${windowEnd.toISOString()}.json`,
+            Body: JSON.stringify(report, null, 2),
+            ContentType: 'application/json'
+        }));
+         console.log(`Hourly report uploaded to s3://${S3_REPORTS_BUCKET}: ${report.namespaces.length} namespace(s).`);
+    } catch (err: any) {
+        console.error('Hourly report failed:', err.message);
 }
 
 app.get('/api/cluster', async (req: Request, res: Response) => {
