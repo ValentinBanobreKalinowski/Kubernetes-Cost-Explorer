@@ -127,7 +127,7 @@ data "aws_iam_policy_document" "backend_reports_assume_role" {
     condition {
       test     = "StringEquals"
       variable = "${module.eks.oidc_provider_url}:sub"
-      values   = ["system:serviceaccount:backend:cost-explorer-backend"]
+      values   = ["system:serviceaccount:backend:backend-service-account"]
     }
 
     condition {
@@ -162,7 +162,7 @@ resource "aws_iam_role_policy" "backend_reports_s3_access" {
 # never manages cluster-scoped identity objects.
 resource "kubernetes_service_account" "backend" {
   metadata {
-    name      = "cost-explorer-backend"
+    name      = "backend-service-account"
     namespace = kubernetes_namespace.backend.metadata[0].name
     annotations = {
       "eks.amazonaws.com/role-arn" = aws_iam_role.backend_reports.arn
