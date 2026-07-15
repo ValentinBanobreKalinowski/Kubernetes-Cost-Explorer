@@ -12,6 +12,10 @@ terraform {
       source  = "hashicorp/helm"
       version = "~> 2.16"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
 }
 
@@ -97,6 +101,73 @@ resource "kubernetes_namespace" "frontend" {
     name = "frontend"
   }
   depends_on = [module.eks]
+}
+
+
+data "aws_caller_identity" "current" {}
+
+module "s3_reports" {
+  source = "./modules/s3"
+
+  // Each s3 bucket has to have a globally unique name. We can add the accountID suffix to keep it unique.
+  name = "kubernetes-cost-explorer-reports-${data.aws_caller_identity.current.account_id}"
+}
+
+// IRSA: lets the backend pod assume this role via its ServiceAccount's OIDC token instead of AWS credentials.
+
+data "aws_iam_policy_document" "backend_reports_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [module.eks.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${module.eks.oidc_provider_url}:sub"
+      values   = ["system:serviceaccount:backend:cost-explorer-backend"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${module.eks.oidc_provider_url}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "backend_reports" {
+  name               = "kubernetes-cost-explorer-backend-reports-role"
+  assume_role_policy = data.aws_iam_policy_document.backend_reports_assume_role.json
+}
+
+data "aws_iam_policy_document" "backend_reports_s3_access" {
+  statement {
+    actions   = ["s3:PutObject"]
+    resources = ["${module.s3_reports.bucket_arn}/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "backend_reports_s3_access" {
+  name   = "s3-reports-write"
+  role   = aws_iam_role.backend_reports.id
+  policy = data.aws_iam_policy_document.backend_reports_s3_access.json
+}
+
+# Dedicated ServiceAccount (not "default") so the IRSA role only grants S3
+# access to backend pods, not everything else running in the namespace.
+# Created directly here, same as the namespaces above, since the Helm chart
+# never manages cluster-scoped identity objects.
+resource "kubernetes_service_account" "backend" {
+  metadata {
+    name      = "cost-explorer-backend"
+    namespace = kubernetes_namespace.backend.metadata[0].name
+    annotations = {
+      "eks.amazonaws.com/role-arn" = aws_iam_role.backend_reports.arn
+    }
+  }
 }
 
 # metrics-server isn't an AWS-managed EKS addon, so it's installed here rather

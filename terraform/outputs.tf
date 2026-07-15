@@ -21,3 +21,7 @@ output "rds_address" {
 output "region" {
   value = var.region
 }
+
+output "s3_reports_bucket" {
+  value = module.s3_reports.bucket_name
+}
