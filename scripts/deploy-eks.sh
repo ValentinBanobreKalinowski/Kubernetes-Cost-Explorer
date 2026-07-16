@@ -3,7 +3,7 @@
 # The script deploys the app to EKS. We first need to run terraform apply of course to provision the infrastructure. 
 
 set -euo pipefail # Exit on error, unset variable, or error in pipe
-cd "$(dirname "$0")" # Change to the script's directory so we can run it from anywhere
+cd "$(dirname "$0")/.." # Change to the script's directory so we can run it from anywhere
 
 REGION=$(terraform -chdir=terraform output -raw region) # Get the region from terraform output
 export REGION # So that Skaffold can pick it up.

@@ -80,11 +80,13 @@ module "rds" {
 resource "aws_ecr_repository" "backend" {
   name                 = "cost-explorer-backend"
   image_tag_mutability = "MUTABLE"
+  force_delete = true
 }
 
 resource "aws_ecr_repository" "frontend" {
   name                 = "cost-explorer-frontend"
   image_tag_mutability = "MUTABLE"
+  force_delete = true
 }
 
 # App namespaces - created here (not by the Helm chart) so they exist and are
