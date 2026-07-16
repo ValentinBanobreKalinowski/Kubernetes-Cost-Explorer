@@ -8,6 +8,9 @@ cd "$(dirname "$0")/.." # Change to the script's directory so we can run it from
 REGION=$(terraform -chdir=terraform output -raw region) # Get the region from terraform output
 export REGION # So that Skaffold can pick it up.
 
+CLUSTER_NAME=$(terraform -chdir=terraform output -raw eks_cluster_name) # Get the cluster name from terraform output
+aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$REGION" # Point kubectl/skaffold at the current cluster (its endpoint changes every time it's recreated)
+
 POSTGRES_HOST=$(terraform -chdir=terraform output -raw rds_address) # Get the RDS address from terraform output
 export POSTGRES_HOST # Export the RDS address so that the app can connect to it
 
