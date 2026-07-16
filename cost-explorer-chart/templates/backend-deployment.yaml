@@ -15,6 +15,7 @@ spec:
       labels:
         app: {{ .Values.backendImageName }}
     spec:
+      serviceAccountName: {{ .Values.backendServiceAccountName | default "default" }}
       containers:
       - name: {{ .Values.backendImageName }}
         image: {{ .Values.backendImage }}
@@ -29,6 +30,12 @@ spec:
           value: "5432"
         - name: POSTGRES_SSL
           value: {{ .Values.backendPostgresSsl | quote }}
+        - name: S3_REPORTS_BUCKET
+          value: {{ .Values.s3ReportsBucket | quote }}
+        - name: AWS_REGION
+          value: {{ .Values.awsRegion | quote }}
+        - name: REPORT_INTERVAL_MINUTES
+          value: {{ .Values.reportIntervalMinutes | quote }} 
         resources:
           requests:
             memory: {{ .Values.requests.memory | quote }}

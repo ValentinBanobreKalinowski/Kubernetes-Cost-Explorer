@@ -17,7 +17,7 @@ metadata:
   name: dashboard-cluster-reader-binding
 subjects:
 - kind: ServiceAccount
-  name: default
+  name: {{ .Values.backendServiceAccountName | default "default"}}
   namespace: {{ .Values.backendNamespaceName }}
 roleRef:
   kind: ClusterRole
