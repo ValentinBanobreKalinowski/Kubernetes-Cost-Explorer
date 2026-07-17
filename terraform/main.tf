@@ -158,6 +158,20 @@ resource "aws_iam_role_policy" "backend_reports_s3_access" {
   policy = data.aws_iam_policy_document.backend_reports_s3_access.json
 }
 
+
+data "aws_iam_policy_document" "backend_rds_connect" {
+  statement {
+    actions   = ["rds-db:connect"]
+    resources = ["arn:aws:rds-db:${var.region}:${data.aws_caller_identity.current.account_id}:dbuser:${module.rds.resource_id}/${var.postgres_app_username}"]
+  }
+}
+
+resource "aws_iam_role_policy" "backend_rds_connect" {
+  name   = "rds-iam-connect"
+  role   = aws_iam_role.backend_reports.id
+  policy = data.aws_iam_policy_document.backend_rds_connect.json
+}
+
 # Dedicated ServiceAccount (not "default") so the IRSA role only grants S3
 # access to backend pods, not everything else running in the namespace.
 # Created directly here, same as the namespaces above, since the Helm chart
@@ -170,6 +184,76 @@ resource "kubernetes_service_account" "backend" {
       "eks.amazonaws.com/role-arn" = aws_iam_role.backend_reports.arn
     }
   }
+}
+
+# RDS Postgres doesn't allow IAM auth for the master user, so a separate DB
+# role has to be created and granted rds_iam before the backend can connect
+# with IAM tokens. RDS isn't publicly reachable (SG only allows the EKS node
+# SG), so this has to run from inside the cluster - a one-shot Job using the
+# master credentials, created directly here same as the ServiceAccount above
+# rather than via the Helm chart. Reuses postgres:17-alpine purely for its
+# psql client, same as the wait-for-postgres initContainer in the chart.
+resource "kubernetes_job" "rds_iam_bootstrap" {
+  metadata {
+    name      = "rds-iam-bootstrap"
+    namespace = kubernetes_namespace.backend.metadata[0].name
+  }
+
+  spec {
+    backoff_limit = 3
+
+    template {
+      metadata {
+        name = "rds-iam-bootstrap"
+      }
+      spec {
+        # Never (not OnFailure) so failed pods are kept around instead of
+        # being deleted once backoff_limit is hit - lets us read logs from
+        # a failed attempt instead of losing them.
+        restart_policy = "Never"
+
+        container {
+          name  = "psql"
+          image = "postgres:17-alpine"
+
+          env {
+            name  = "PGPASSWORD"
+            value = var.postgres_password
+          }
+
+          command = ["psql"]
+          args = [
+            "-h", module.rds.address,
+            "-p", tostring(module.rds.port),
+            "-U", var.postgres_user,
+            "-d", var.postgres_db,
+            "-v", "ON_ERROR_STOP=1",
+            "-c", <<-EOT
+              DO $body$
+              BEGIN
+                IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${var.postgres_app_username}') THEN
+                  CREATE ROLE ${var.postgres_app_username} WITH LOGIN;
+                END IF;
+              END
+              $body$;
+              GRANT rds_iam TO ${var.postgres_app_username};
+              GRANT ALL ON SCHEMA public TO ${var.postgres_app_username};
+              GRANT ALL PRIVILEGES ON DATABASE ${var.postgres_db} TO ${var.postgres_app_username};
+            EOT
+          ]
+        }
+      }
+    }
+  }
+
+  wait_for_completion = true
+
+  timeouts {
+    create = "3m"
+    update = "3m"
+  }
+
+  depends_on = [module.rds, module.eks]
 }
 
 # metrics-server isn't an AWS-managed EKS addon, so it's installed here rather

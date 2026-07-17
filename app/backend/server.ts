@@ -4,16 +4,28 @@ import fs from 'fs';
 import https from 'https';
 import { Pool } from 'pg';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { Signer } from '@aws-sdk/rds-signer'
 
 
 const app = express();
 const PORT = 3000;
 
+const POSTGRES_HOST = process.env.POSTGRES_HOST;
+const POSTGRES_PORT = Number(process.env.POSTGRES_PORT ?? 5432);
+const POSTGRES_USER = process.env.POSTGRES_USER;
+
+// On EKS the backend authenticates to RDS with a short-lived IAM token
+// (via its IRSA role) instead of a static password. Local/k3d dev keeps the
+// static POSTGRES_PASSWORD since there's no IAM identity to sign tokens with.
+const iamSigner = process.env.POSTGRES_IAM_AUTH === 'true'
+    ? new Signer({ hostname: POSTGRES_HOST!, port: POSTGRES_PORT, username: POSTGRES_USER!, region: process.env.AWS_REGION })
+    : null;
+
 const pool = new Pool({
-    host: process.env.POSTGRES_HOST,
-    port: Number(process.env.POSTGRES_PORT ?? 5432),
-    user: process.env.POSTGRES_USER,
-    password: process.env.POSTGRES_PASSWORD,
+    host: POSTGRES_HOST,
+    port: POSTGRES_PORT,
+    user: POSTGRES_USER,
+    password: iamSigner ? () => iamSigner.getAuthToken() : process.env.POSTGRES_PASSWORD,
     database: process.env.POSTGRES_DB,
     // RDS enforces SSL by default; the in-cluster dev Postgres doesn't support it.
     ssl: process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: false } : undefined
@@ -29,23 +41,37 @@ const REPORT_INTERVAL_MS = REPORT_INTERVAL_MINUTES * 60 * 1000;
 const S3_REPORTS_BUCKET = process.env.S3_REPORTS_BUCKET;
 const s3Client = S3_REPORTS_BUCKET ? new S3Client({ region: process.env.AWS_REGION }) : null
 
+// Arbitrary fixed key for a session-level advisory lock - serializes the
+// schema creation below across replicas. CREATE TABLE/INDEX IF NOT EXISTS
+// isn't safe against concurrent DDL: multiple replicas starting at once can
+// each see "doesn't exist" and race to create it, and the loser errors with
+// "duplicate key value violates unique constraint pg_class_relname_nsp_index".
+const INIT_DB_LOCK_KEY = 676767;
+
 async function initDb(): Promise<void> {
-    await pool.query(`
-        CREATE TABLE IF NOT EXISTS cost_snapshots (
-            id SERIAL PRIMARY KEY,
-            snapshot_time TIMESTAMPTZ NOT NULL,
-            namespace TEXT NOT NULL,
-            pod_count INTEGER NOT NULL,
-            cpu_request_millicores INTEGER NOT NULL,
-            memory_request_ki INTEGER NOT NULL,
-            estimated_hourly_cost NUMERIC(10, 4) NOT NULL
-        );
-    `);
-    // dedups inserts across replicas for the same tick
-    await pool.query(`
-        CREATE UNIQUE INDEX IF NOT EXISTS cost_snapshots_namespace_time_idx
-        ON cost_snapshots (namespace, snapshot_time);
-    `);
+    const client = await pool.connect();
+    try {
+        await client.query('SELECT pg_advisory_lock($1)', [INIT_DB_LOCK_KEY]);
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS cost_snapshots (
+                id SERIAL PRIMARY KEY,
+                snapshot_time TIMESTAMPTZ NOT NULL,
+                namespace TEXT NOT NULL,
+                pod_count INTEGER NOT NULL,
+                cpu_request_millicores INTEGER NOT NULL,
+                memory_request_ki INTEGER NOT NULL,
+                estimated_hourly_cost NUMERIC(10, 4) NOT NULL
+            );
+        `);
+        // dedups inserts across replicas for the same tick
+        await client.query(`
+            CREATE UNIQUE INDEX IF NOT EXISTS cost_snapshots_namespace_time_idx
+            ON cost_snapshots (namespace, snapshot_time);
+        `);
+    } finally {
+        await client.query('SELECT pg_advisory_unlock($1)', [INIT_DB_LOCK_KEY]);
+        client.release();
+    }
     console.log('Postgres ready: cost_snapshots table present.');
 }
 
@@ -191,10 +217,19 @@ async function takeSnapshot(): Promise<void> {
     }
 }
 
+// Separate advisory lock key from INIT_DB_LOCK_KEY - all replicas fire this
+// on the same wall-clock-aligned timer, so without electing a single winner
+// each replica uploads its own near-duplicate report every tick.
+const REPORT_LOCK_KEY = 676768;
+
 async function generateHourlyReport(): Promise<void> {
-    if (!s3Client) return; 
+    if (!s3Client) return;
+    const client = await pool.connect();
     try {
-        const result = await pool.query<{ namespace: string; avg_hourly_cost: number; snapshot_count: string}>(
+        const { rows: [{ locked }] } = await client.query<{ locked: boolean }>('SELECT pg_try_advisory_lock($1) AS locked', [REPORT_LOCK_KEY]);
+        if (!locked) return; // another replica already won this tick
+
+        const result = await client.query<{ namespace: string; avg_hourly_cost: number; snapshot_count: string}>(
             `SELECT namespace, AVG(estimated_hourly_cost)::double precision AS avg_hourly_cost,
             COUNT(*) AS snapshot_count FROM cost_snapshots WHERE snapshot_time > now() - interval '1 hour' GROUP BY namespace ORDER BY namespace`
         );
@@ -220,7 +255,11 @@ async function generateHourlyReport(): Promise<void> {
          console.log(`Hourly report uploaded to s3://${S3_REPORTS_BUCKET}: ${report.namespaces.length} namespace(s).`);
     } catch (err: any) {
         console.error('Hourly report failed:', err.message);
-}}
+    } finally {
+        await client.query('SELECT pg_advisory_unlock($1)', [REPORT_LOCK_KEY]);
+        client.release();
+    }
+}
 
 app.get('/api/cluster', async (req: Request, res: Response) => {
     try {

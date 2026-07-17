@@ -15,3 +15,8 @@ output "port" {
 output "security_group_id" {
   value = aws_security_group.this.id
 }
+
+output "resource_id" {
+  description = "DbiResourceId - needed to build the rds-db:connect IAM policy ARN"
+  value       = aws_db_instance.this.resource_id
+}
