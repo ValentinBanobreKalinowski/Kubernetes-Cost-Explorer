@@ -30,6 +30,8 @@ spec:
           value: "5432"
         - name: POSTGRES_SSL
           value: {{ .Values.backendPostgresSsl | quote }}
+        - name: POSTGRES_IAM_AUTH
+          value: {{ .Values.backendPostgresIamAuth | quote }}
         - name: S3_REPORTS_BUCKET
           value: {{ .Values.s3ReportsBucket | quote }}
         - name: AWS_REGION

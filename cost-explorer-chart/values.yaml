@@ -52,6 +52,13 @@ backendPostgresHost: ""
 # RDS enforces SSL by default; the local in-cluster Postgres doesn't support it.
 backendPostgresSsl: false
 
+# When true, the backend authenticates to Postgres with a short-lived IAM
+# token (via its IRSA role) instead of a static password - only supported
+# against RDS, set true by the eks profile. backendPostgresUser must then be
+# the IAM-mapped DB role (var.postgres_app_username in Terraform), not
+# the RDS master user.
+backendPostgresIamAuth: false
+
 # Postgres credentials
 backendPostgresSecretName: "cost-explorer-db-secret"
 

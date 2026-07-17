@@ -59,7 +59,7 @@ profiles:
           - name: cost-explorer
             chartPath: cost-explorer-chart
             setValueTemplates:
-              backendPostgresPassword: "{{.POSTGRES_PASSWORD}}"
+              # POSTGRES_USER must be the IAM-mapped DB role (var.postgres_app_username)
               backendPostgresUser: "{{.POSTGRES_USER}}"
               backendPostgresDb: "{{.POSTGRES_DB}}"
               backendImage: "{{.IMAGE_FULLY_QUALIFIED_cost_explorer_backend}}"
@@ -71,6 +71,7 @@ profiles:
               frontendServiceType: LoadBalancer
               deployInClusterPostgres: "false" # Use RDS instead of in-cluster Postgres
               backendPostgresSsl: "true" # RDS enforces SSL
+              backendPostgresIamAuth: "true" # Short-lived IAM token auth via IRSA instead of a static password
               backendServiceAccountName: "backend-service-account"
               reportIntervalMinutes: 5 # Not gonna wait an hour, i am a poor student :--c.
     portForward: [] # No port-forwarding for EKS, as the frontend is exposed via LoadBalancer

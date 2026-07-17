@@ -60,4 +60,10 @@ resource "aws_db_instance" "this" {
   skip_final_snapshot     = true
   deletion_protection     = false
   storage_encrypted       = true
+
+  # Lets IAM-authenticated roles connect with short-lived auth tokens instead
+  # of the master password. Postgres doesn't allow IAM auth for the master
+  # user itself, so a separate DB role still has to be created and granted
+  # rds_iam.
+  iam_database_authentication_enabled = true
 }
