@@ -172,6 +172,21 @@ resource "aws_iam_role_policy" "backend_rds_connect" {
   policy = data.aws_iam_policy_document.backend_rds_connect.json
 }
 
+# The Pricing API doesn't support resource-level scoping (no ARNs to
+# restrict to) - "*" is the only valid resource for this action.
+data "aws_iam_policy_document" "backend_pricing_read" {
+  statement {
+    actions   = ["pricing:GetProducts"]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "backend_pricing_read" {
+  name   = "pricing-read"
+  role   = aws_iam_role.backend_reports.id
+  policy = data.aws_iam_policy_document.backend_pricing_read.json
+}
+
 # Dedicated ServiceAccount (not "default") so the IRSA role only grants S3
 # access to backend pods, not everything else running in the namespace.
 # Created directly here, same as the namespaces above, since the Helm chart
