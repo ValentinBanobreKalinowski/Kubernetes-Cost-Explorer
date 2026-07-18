@@ -5,6 +5,7 @@ import https from 'https';
 import { Pool } from 'pg';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { Signer } from '@aws-sdk/rds-signer'
+import { PricingClient, GetProductsCommand } from '@aws-sdk/client-pricing'
 
 
 const app = express();
@@ -31,7 +32,10 @@ const pool = new Pool({
     ssl: process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: false } : undefined
 });
 
-// For now we'll hardcode the cost rates, but when its deployed to aws we will get real data.
+// Fallback flat rates - used for local/k3d dev (no real EC2 instance types to
+// price) and as a safety net if a node's instance type can't be priced via
+// the AWS Pricing API. On EKS, real per-node pricing takes over instead (see
+// getInstanceHourlyPrice/buildNodePricing below).
 const CPU_HOUR_RATE = Number(process.env.CPU_HOUR_RATE ?? 0.03);
 const MEMORY_GB_HOUR_RATE = Number(process.env.MEMORY_GB_HOUR_RATE ?? 0.004);
 const SNAPSHOT_INTERVAL_MS = 15 * 1000;
@@ -40,6 +44,14 @@ const REPORT_INTERVAL_MS = REPORT_INTERVAL_MINUTES * 60 * 1000;
 
 const S3_REPORTS_BUCKET = process.env.S3_REPORTS_BUCKET;
 const s3Client = S3_REPORTS_BUCKET ? new S3Client({ region: process.env.AWS_REGION }) : null
+
+// The AWS Pricing API is only served out of us-east-1 (and ap-south-1),
+// regardless of which region the priced resources actually live in - the
+// region we're pricing for is passed as a request filter instead, below.
+const PRICING_API_REGION = 'us-east-1';
+const PRICING_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // on-demand EC2 pricing rarely changes intraday
+const pricingClient = process.env.AWS_REGION ? new PricingClient({ region: PRICING_API_REGION }) : null;
+const instancePriceCache = new Map<string, { hourlyPriceUsd: number; fetchedAt: number }>();
 
 // Arbitrary fixed key for a session-level advisory lock - serializes the
 // schema creation below across replicas. CREATE TABLE/INDEX IF NOT EXISTS
@@ -90,6 +102,9 @@ interface K8sNode {
     metadata: {
         name: string;
         labels?: Record<string, string>;
+    };
+    status?: {
+        allocatable?: { cpu?: string; memory?: string };
     };
 }
 
@@ -174,33 +189,124 @@ function parseMemoryToKi(memory: string): number {
     return Math.round(parseInt(memory, 10) / 1024);
 }
 
-function computeNamespaceSnapshots(pods: K8sPod[]): NamespaceSnapshot[] {
-    const byNamespace: Record<string, { podCount: number; cpuRequestMillicores: number; memoryRequestKi: number }> = {};
+interface NodePricing {
+    hourlyPriceUsd: number;
+    allocatableCpuMillicores: number;
+    allocatableMemoryKi: number;
+}
+
+// Looks up the real AWS on-demand hourly price for an EC2 instance type,
+// cached since pricing barely moves and we'd otherwise hit this every
+// snapshot tick. Returns null (falling back to the flat rate) if there's no
+// pricing client (no AWS_REGION - local/k3d dev) or no matching product,
+// which also naturally covers non-EC2 instance types like k3d's "k3s".
+async function getInstanceHourlyPrice(instanceType: string): Promise<number | null> {
+    const cached = instancePriceCache.get(instanceType);
+    if (cached && Date.now() - cached.fetchedAt < PRICING_CACHE_TTL_MS) return cached.hourlyPriceUsd;
+
+    if (!pricingClient) return null;
+    try {
+        const res = await pricingClient.send(new GetProductsCommand({
+            ServiceCode: 'AmazonEC2',
+            Filters: [
+                { Type: 'TERM_MATCH', Field: 'instanceType', Value: instanceType },
+                { Type: 'TERM_MATCH', Field: 'regionCode', Value: process.env.AWS_REGION! },
+                { Type: 'TERM_MATCH', Field: 'operatingSystem', Value: 'Linux' },
+                { Type: 'TERM_MATCH', Field: 'tenancy', Value: 'Shared' },
+                { Type: 'TERM_MATCH', Field: 'preInstalledSw', Value: 'NA' },
+                { Type: 'TERM_MATCH', Field: 'capacitystatus', Value: 'Used' },
+            ],
+            MaxResults: 1,
+        }));
+
+        const raw = res.PriceList?.[0];
+        if (!raw) {
+            console.warn(`No AWS Pricing data for instance type ${instanceType} - falling back to flat rate.`);
+            return null;
+        }
+
+        const product = JSON.parse(raw as string);
+        const onDemandTerm: any = Object.values(product.terms.OnDemand)[0];
+        const priceDimension: any = Object.values(onDemandTerm.priceDimensions)[0];
+        const hourlyPriceUsd = parseFloat(priceDimension.pricePerUnit.USD);
+
+        instancePriceCache.set(instanceType, { hourlyPriceUsd, fetchedAt: Date.now() });
+        return hourlyPriceUsd;
+    } catch (err: any) {
+        console.error(`AWS Pricing lookup failed for ${instanceType}:`, err.message);
+        return null;
+    }
+}
+
+// Builds a nodeName -> pricing map for every node currently in the cluster,
+// so pods can be costed against the real price of the instance type they're
+// actually scheduled on.
+async function buildNodePricing(nodes: K8sNode[]): Promise<Record<string, NodePricing>> {
+    const result: Record<string, NodePricing> = {};
+
+    await Promise.all(nodes.map(async (node) => {
+        const instanceType = node.metadata.labels?.['node.kubernetes.io/instance-type'];
+        const allocatable = node.status?.allocatable;
+        if (!instanceType || !allocatable?.cpu || !allocatable?.memory) return;
+
+        const hourlyPriceUsd = await getInstanceHourlyPrice(instanceType);
+        if (hourlyPriceUsd === null) return;
+
+        result[node.metadata.name] = {
+            hourlyPriceUsd,
+            allocatableCpuMillicores: parseCpuToMillicores(allocatable.cpu),
+            allocatableMemoryKi: parseMemoryToKi(allocatable.memory),
+        };
+    }));
+
+    return result;
+}
+
+function computeNamespaceSnapshots(pods: K8sPod[], nodePricing: Record<string, NodePricing>): NamespaceSnapshot[] {
+    const byNamespace: Record<string, { podCount: number; cpuRequestMillicores: number; memoryRequestKi: number; estimatedHourlyCost: number }> = {};
 
     for (const pod of pods) {
         const ns = pod.metadata.namespace;
-        const entry = (byNamespace[ns] ??= { podCount: 0, cpuRequestMillicores: 0, memoryRequestKi: 0 });
+        const entry = (byNamespace[ns] ??= { podCount: 0, cpuRequestMillicores: 0, memoryRequestKi: 0, estimatedHourlyCost: 0 });
         entry.podCount++;
 
+        let podCpuMillicores = 0;
+        let podMemoryKi = 0;
         for (const container of pod.spec.containers) {
             const requests = container.resources?.requests;
-            if (requests?.cpu) entry.cpuRequestMillicores += parseCpuToMillicores(requests.cpu);
-            if (requests?.memory) entry.memoryRequestKi += parseMemoryToKi(requests.memory);
+            if (requests?.cpu) podCpuMillicores += parseCpuToMillicores(requests.cpu);
+            if (requests?.memory) podMemoryKi += parseMemoryToKi(requests.memory);
+        }
+        entry.cpuRequestMillicores += podCpuMillicores;
+        entry.memoryRequestKi += podMemoryKi;
+
+        const node = pod.spec.nodeName ? nodePricing[pod.spec.nodeName] : undefined;
+        if (node) {
+            // Dominant-resource share: charge the pod for whichever request
+            // (cpu or memory) claims the larger fraction of the node, since
+            // that's the resource that actually gates how much else can be
+            // packed onto it.
+            const cpuShare = podCpuMillicores / node.allocatableCpuMillicores;
+            const memoryShare = podMemoryKi / node.allocatableMemoryKi;
+            entry.estimatedHourlyCost += node.hourlyPriceUsd * Math.max(cpuShare, memoryShare);
+        } else {
+            // Unscheduled pod, or its node's instance type has no AWS
+            // Pricing match (e.g. local k3d dev) - use the flat rate.
+            entry.estimatedHourlyCost += (podCpuMillicores / 1000) * CPU_HOUR_RATE + (podMemoryKi / (1024 * 1024)) * MEMORY_GB_HOUR_RATE;
         }
     }
 
-    return Object.entries(byNamespace).map(([namespace, entry]) => {
-        const cpuCores = entry.cpuRequestMillicores / 1000;
-        const memoryGi = entry.memoryRequestKi / (1024 * 1024);
-        const estimatedHourlyCost = cpuCores * CPU_HOUR_RATE + memoryGi * MEMORY_GB_HOUR_RATE;
-        return { namespace, ...entry, estimatedHourlyCost };
-    });
+    return Object.entries(byNamespace).map(([namespace, entry]) => ({ namespace, ...entry }));
 }
 
 async function takeSnapshot(): Promise<void> {
     try {
-        const podsRes = await k8sClient.get<K8sList<K8sPod>>(`${K8S_API}/api/v1/pods`);
-        const snapshots = computeNamespaceSnapshots(podsRes.data.items);
+        const [podsRes, nodesRes] = await Promise.all([
+            k8sClient.get<K8sList<K8sPod>>(`${K8S_API}/api/v1/pods`),
+            k8sClient.get<K8sList<K8sNode>>(`${K8S_API}/api/v1/nodes`),
+        ]);
+        const nodePricing = await buildNodePricing(nodesRes.data.items);
+        const snapshots = computeNamespaceSnapshots(podsRes.data.items, nodePricing);
         const bucketedTime = new Date(Math.floor(Date.now() / SNAPSHOT_INTERVAL_MS) * SNAPSHOT_INTERVAL_MS);
 
         for (const snap of snapshots) {
