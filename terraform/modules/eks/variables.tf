@@ -1,28 +1,28 @@
 variable "name" {
-    type        = string
+  type = string
 }
 
 variable "vpc_id" {
-    type        = string
+  type = string
 }
 
 variable "subnet_ids" {
-    type        = list(string)
+  type = list(string)
 }
 
 variable "cluster_version" {
-    type = string
-    default = "1.35"
+  type    = string
+  default = "1.35"
 }
 
 variable "node_instance_type" {
-    type = string
-    default = "t3.medium"
+  type    = string
+  default = "t3.medium"
 }
 
 variable "node_desired_size" {
-    type = number
-    default   = 1
+  type    = number
+  default = 1
 
 }
 
