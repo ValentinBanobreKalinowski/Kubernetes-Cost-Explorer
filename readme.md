@@ -14,6 +14,10 @@
 
 </div>
 
+## Architecture
+
+![Infrastructure diagram](docs/infrastructure.svg)
+
 ## Planned Metrics
 
 The application will monitor cluster metrics such as:
