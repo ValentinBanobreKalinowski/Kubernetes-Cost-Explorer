@@ -62,6 +62,8 @@ module "eks" {
   name       = "kubernetes-cluster-metrics"
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnet_ids
+  
+  depends_on = [module.vpc]
 }
 
 module "rds" {
