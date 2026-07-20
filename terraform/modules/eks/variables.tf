@@ -22,16 +22,22 @@ variable "node_instance_type" {
 
 variable "node_desired_size" {
   type    = number
-  default = 1
-
+  default = 2
 }
 
 variable "node_min_size" {
-  type    = number
-  default = 1
+  description = "2 so there's one node per AZ at baseline"
+  type        = number
+  default     = 2
 }
 variable "node_max_size" {
   type    = number
-  default = 2
+  default = 4
+}
+
+variable "node_cpu_target" {
+  description = "Target average CPU utilization (%) the node group's ASG scales toward"
+  type        = number
+  default     = 70
 }
 

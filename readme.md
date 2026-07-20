@@ -26,8 +26,7 @@ A dashboard that tracks per-namespace resource usage and estimated cost across a
 - Multi-AZ (EKS nodes + RDS across 2 AZs)
 - RDS Multi-AZ standby replica for automatic failover
 - One NAT gateway + EIP per AZ, so private subnet egress survives an AZ outage
-- EKS node group backed by an Auto Scaling Group
-
+- EKS node group: 2-4 nodes (one per AZ at baseline), CPU-based target tracking scales the ASG and covers AZ failure
 
 ### Scalability
 - HPA on frontend + backend: 3–30 pods, CPU-based
