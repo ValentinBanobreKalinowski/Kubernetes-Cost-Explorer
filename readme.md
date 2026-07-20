@@ -1,6 +1,6 @@
 <div align="center">
 
-# Kubernetes Cluster Metrics && Cost Explorer
+# Kubernetes Cluster Metrics & Cost Explorer
 
 ---
 
@@ -14,33 +14,16 @@
 
 </div>
 
+## Overview
+
+A dashboard that tracks per-namespace resource usage and estimated cost across a Kubernetes cluster in real time. It snapshots pod resource requests on an interval, prices them against real AWS EC2 on-demand rates for whichever node they're running on, stores the history in Postgres, and exports hourly cost reports to S3.
+
 ## Architecture
+
+**AWS infrastructure**
 
 ![Infrastructure diagram](docs/infrastructure.svg)
 
-## Planned Metrics
+**Kubernetes cluster**
 
-The application will monitor cluster metrics such as:
-
-- Number of pods
-- CPU usage
-- Memory usage
-- Requests
-- Approximate cluster costs
-- Costs per namespace, for example
-- Number of pods per worker node
-- Current number of worker nodes
-- Availability zones in which the nodes are currently deployed
-
-## Roadmap
-
-- Implement the basics of the application on a local cluter with k3d. DONE
-- Move the cluster to AWS, declare the infrastructure in code with Terraform. <- Here now
-- Implement last functionalities, connect prometheus and graphana as well as github actions.
-
-
----
-
-Project began 01/07/2026 — approximate time for MVP: ~1 month.
-
-**@Valentin Banobre Kalinowski**
+![Cluster diagram](docs/clusterDiagram.svg)
