@@ -1,13 +1,3 @@
-data "aws_iam_policy_document" "eks_assume_role" {
-  statement {
-    actions = ["sts:AssumeRole"]
-    principals {
-      type        = "Service"
-      identifiers = ["eks.amazonaws.com"]
-    }
-  }
-}
-
 resource "aws_iam_role" "cluster" {
   name               = "${var.name}-cluster-role"
   assume_role_policy = data.aws_iam_policy_document.eks_assume_role.json
@@ -29,16 +19,6 @@ resource "aws_eks_cluster" "this" {
   }
 
   depends_on = [aws_iam_role_policy_attachment.cluster_policy]
-}
-
-data "aws_iam_policy_document" "node_assume_role" {
-  statement {
-    actions = ["sts:AssumeRole"]
-    principals {
-      type        = "Service"
-      identifiers = ["ec2.amazonaws.com"]
-    }
-  }
 }
 
 resource "aws_iam_role" "node" {
@@ -101,10 +81,6 @@ resource "aws_autoscaling_policy" "node_cpu" {
 # EKS clusters expose an OIDC issuer by default. This lets AWS IAM trust
 # tokens issued to Kubernetes ServiceAccounts, so pods can assume IAM roles
 # without static credentials (IRSA).
-data "tls_certificate" "eks" {
-  url = aws_eks_cluster.this.identity[0].oidc[0].issuer
-}
-
 resource "aws_iam_openid_connect_provider" "eks" {
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = [data.tls_certificate.eks.certificates[0].sha1_fingerprint]
