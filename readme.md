@@ -13,7 +13,6 @@
 </div>
 
 ## Overview
-
 A dashboard that tracks per-namespace resource usage and estimated cost across a Kubernetes cluster in real time. It snapshots pod resource requests on an interval, prices them against real AWS EC2 on-demand rates for whichever node they're running on, stores the history in Postgres, and exports hourly cost reports to S3.
 
 ## Architecture
@@ -25,7 +24,10 @@ A dashboard that tracks per-namespace resource usage and estimated cost across a
 
 ### Availability
 - Multi-AZ (EKS nodes + RDS across 2 AZs)
+- RDS Multi-AZ standby replica for automatic failover
+- One NAT gateway + EIP per AZ, so private subnet egress survives an AZ outage
 - EKS node group backed by an Auto Scaling Group
+
 
 ### Scalability
 - HPA on frontend + backend: 3–30 pods, CPU-based
@@ -34,4 +36,8 @@ A dashboard that tracks per-namespace resource usage and estimated cost across a
 - No static AWS credentials — IRSA for S3, RDS, and Pricing API
 - Dedicated ServiceAccount + read-only ClusterRole
 - Private subnets, no public IPs
+- TLS via a Route53-hosted domain + DNS-validated ACM certificate on the frontend NLB
+
+## Application Screenshot
+![Application](docs/application.png)
 
