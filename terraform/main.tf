@@ -108,8 +108,6 @@ resource "kubernetes_namespace" "frontend" {
 }
 
 
-data "aws_caller_identity" "current" {}
-
 module "s3_reports" {
   source = "./modules/s3"
 
@@ -126,39 +124,9 @@ module "route53" {
 
 // IRSA: lets the backend pod assume this role via its ServiceAccount's OIDC token instead of AWS credentials.
 
-data "aws_iam_policy_document" "backend_reports_assume_role" {
-  statement {
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-
-    principals {
-      type        = "Federated"
-      identifiers = [module.eks.oidc_provider_arn]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${module.eks.oidc_provider_url}:sub"
-      values   = ["system:serviceaccount:backend:backend-service-account"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${module.eks.oidc_provider_url}:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-  }
-}
-
 resource "aws_iam_role" "backend_reports" {
   name               = "kubernetes-cost-explorer-backend-reports-role"
   assume_role_policy = data.aws_iam_policy_document.backend_reports_assume_role.json
-}
-
-data "aws_iam_policy_document" "backend_reports_s3_access" {
-  statement {
-    actions   = ["s3:PutObject"]
-    resources = ["${module.s3_reports.bucket_arn}/*"]
-  }
 }
 
 resource "aws_iam_role_policy" "backend_reports_s3_access" {
@@ -167,27 +135,10 @@ resource "aws_iam_role_policy" "backend_reports_s3_access" {
   policy = data.aws_iam_policy_document.backend_reports_s3_access.json
 }
 
-
-data "aws_iam_policy_document" "backend_rds_connect" {
-  statement {
-    actions   = ["rds-db:connect"]
-    resources = ["arn:aws:rds-db:${var.region}:${data.aws_caller_identity.current.account_id}:dbuser:${module.rds.resource_id}/${var.postgres_app_username}"]
-  }
-}
-
 resource "aws_iam_role_policy" "backend_rds_connect" {
   name   = "rds-iam-connect"
   role   = aws_iam_role.backend_reports.id
   policy = data.aws_iam_policy_document.backend_rds_connect.json
-}
-
-# The Pricing API doesn't support resource-level scoping (no ARNs to
-# restrict to) - "*" is the only valid resource for this action.
-data "aws_iam_policy_document" "backend_pricing_read" {
-  statement {
-    actions   = ["pricing:GetProducts"]
-    resources = ["*"]
-  }
 }
 
 resource "aws_iam_role_policy" "backend_pricing_read" {

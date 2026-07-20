@@ -74,5 +74,5 @@ profiles:
               backendPostgresSsl: "true" # RDS enforces SSL
               backendPostgresIamAuth: "true" # Short-lived IAM token auth via IRSA instead of a static password
               backendServiceAccountName: "backend-service-account"
-              reportIntervalMinutes: 5 # Not gonna wait an hour, i am a poor student :--c.
+              reportIntervalMinutes: 60
     portForward: [] # No port-forwarding for EKS, as the frontend is exposed via LoadBalancer
