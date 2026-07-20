@@ -90,6 +90,10 @@ frontendIngressName: "cost-explorer-frontend-ingress"
 frontendServiceType: "NodePort"
 frontendNodePort: 30080
 
+# ACM cert ARN for the frontend NLB's 443 listener. Empty means no 443
+# listener. Set via the eks Skaffold profile.
+frontendCertArn: ""
+
 # Resource requests and limits for the backend container
 requests:
   memory: "256Mi"

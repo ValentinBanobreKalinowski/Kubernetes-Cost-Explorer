@@ -117,6 +117,13 @@ module "s3_reports" {
   name = "kubernetes-cost-explorer-reports-${data.aws_caller_identity.current.account_id}"
 }
 
+module "route53" {
+  source = "./modules/route53"
+
+  domain_name  = var.domain_name
+  app_hostname = var.app_hostname
+}
+
 // IRSA: lets the backend pod assume this role via its ServiceAccount's OIDC token instead of AWS credentials.
 
 data "aws_iam_policy_document" "backend_reports_assume_role" {

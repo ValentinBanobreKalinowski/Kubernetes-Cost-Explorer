@@ -29,3 +29,13 @@ output "region" {
 output "s3_reports_bucket" {
   value = module.s3_reports.bucket_name
 }
+
+output "app_hostname" {
+  value = var.app_hostname
+}
+output "route53_zone_id" {
+  value = module.route53.zone_id
+}
+output "acm_certificate_arn" {
+  value = module.route53.certificate_arn
+}

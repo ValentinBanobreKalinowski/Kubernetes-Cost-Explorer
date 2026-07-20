@@ -35,7 +35,7 @@ resource "aws_security_group" "this" {
     Name = "${var.name}-rds-sg"
   }
 }
-// Create the RDS instance with the specified parameters, using the subnet group and security group created above. The RDS instance will be a Postgres database with the specified engine version, instance class, allocated storage, and credentials. It will not be publicly accessible and will not have multi-AZ deployment or backups enabled for now.
+// Create the RDS instance with the specified parameters, using the subnet group and security group created above. The RDS instance will be a Postgres database with the specified engine version, instance class, allocated storage, and credentials. It will not be publicly accessible and will not have backups enabled for now.
 resource "aws_db_instance" "this" {
   identifier     = "${var.name}-db"
   engine         = "postgres"
@@ -53,7 +53,7 @@ resource "aws_db_instance" "this" {
   db_subnet_group_name   = aws_db_subnet_group.this.name
   vpc_security_group_ids = [aws_security_group.this.id]
   publicly_accessible    = false
-  multi_az               = false
+  multi_az               = true
 
   # Not backing up for now.
   backup_retention_period = 0

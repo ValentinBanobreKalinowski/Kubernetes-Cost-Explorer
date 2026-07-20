@@ -60,42 +60,46 @@ resource "aws_subnet" "private" {
   }
 }
 
-# Single NAT gateway (not one per AZ) to keep costs down, for high-availabilty we would use 2 but its more expensive.
+# One NAT gateway per AZ, so egress survives a single AZ going down.
 
 resource "aws_eip" "nat" {
+  count  = length(var.public_subnet_cidrs)
   domain = "vpc"
 
   tags = {
-    Name = "${var.name}-nat-eip"
+    Name = "${var.name}-nat-eip-${count.index + 1}"
   }
 }
 
 resource "aws_nat_gateway" "this" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public[0].id
+  count         = length(var.public_subnet_cidrs)
+  allocation_id = aws_eip.nat[count.index].id
+  subnet_id     = aws_subnet.public[count.index].id
 
   tags = {
-    Name = "${var.name}-nat"
+    Name = "${var.name}-nat-${count.index + 1}"
   }
 
   depends_on = [aws_internet_gateway.this]
 }
 
+# One private route table per AZ, pointing at that AZ's own NAT gateway.
 resource "aws_route_table" "private" {
+  count  = length(var.private_subnet_cidrs)
   vpc_id = aws_vpc.this.id
 
   route {
     cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.this.id
+    nat_gateway_id = aws_nat_gateway.this[count.index].id
   }
 
   tags = {
-    Name = "${var.name}-private-rt"
+    Name = "${var.name}-private-rt-${count.index + 1}"
   }
 }
 
 resource "aws_route_table_association" "private" {
   count          = length(var.private_subnet_cidrs)
   subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private.id
+  route_table_id = aws_route_table.private[count.index].id
 }

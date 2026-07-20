@@ -412,7 +412,7 @@ app.get('/api/cluster', async (req: Request, res: Response) => {
         });
 
         res.json({
-            clusterName: 'k3d-project-cluster',
+            clusterName: 'valentin-eks-cluster',
             nodesCount: nodesRes.data.items.length,
             podsCount: podsRes.data.items.length,
             totalCpuMillicores,

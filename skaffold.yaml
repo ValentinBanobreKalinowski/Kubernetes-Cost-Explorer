@@ -67,6 +67,7 @@ profiles:
               backendPostgresHost: "{{.POSTGRES_HOST}}" # Use RDS endpoint instead of in-cluster Postgres
               s3ReportsBucket: "{{.S3_REPORTS_BUCKET}}"
               awsRegion: "{{.REGION}}"
+              frontendCertArn: "{{.FRONTEND_CERT_ARN}}"
             setValues:
               frontendServiceType: LoadBalancer
               deployInClusterPostgres: "false" # Use RDS instead of in-cluster Postgres

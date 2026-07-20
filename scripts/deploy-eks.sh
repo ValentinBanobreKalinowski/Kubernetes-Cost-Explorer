@@ -17,6 +17,9 @@ export POSTGRES_HOST # Export the RDS address so that the app can connect to it
 S3_REPORTS_BUCKET=$(terraform -chdir=terraform output -raw s3_reports_bucket) # Get the buckets name
 export S3_REPORTS_BUCKET # Export so that Skaffold can pick it up
 
+FRONTEND_CERT_ARN=$(terraform -chdir=terraform output -raw acm_certificate_arn) # Validated ACM cert from the route53 module
+export FRONTEND_CERT_ARN # Export so that Skaffold can attach it to the frontend NLB's 443 listener
+
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text) # Get the AWS account ID
 ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com" # Construct the ECR registry URL
 
@@ -29,3 +32,5 @@ set +a
 
 # Build and push the Docker images to ECR, then deploy to EKS using Skaffold
 skaffold run -p eks --default-repo="$ECR_REGISTRY"
+
+# Run ./scripts/update-dns.sh afterwards to point the domain at the frontend's LB.
