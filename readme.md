@@ -29,20 +29,12 @@ Frontend and backend Deployments in their own namespaces, each behind an HPA, wi
 
 ## Key Design Decisions
 
-### Availability
-- Multi-AZ (EKS nodes + RDS across 2 AZs)
-- RDS Multi-AZ standby replica for automatic failover
-- One NAT gateway + EIP per AZ, so private subnet egress survives an AZ outage
-- EKS node group: 2-4 nodes (one per AZ at baseline), CPU-based target tracking scales the ASG and covers AZ failure
-
-### Scalability
-- HPA on frontend + backend: 3–30 pods, CPU-based
-
-### Security
-- No static AWS credentials — IRSA for S3, RDS, and Pricing API
-- Dedicated ServiceAccount + read-only ClusterRole
-- Private subnets, no public IPs
-- TLS via a Route53-hosted domain + DNS-validated ACM certificate on the frontend NLB
+| Section | Explanation |
+|---|---|
+| **High Availability** | RDS Multi-AZ standby replica for automatic failover<br>One NAT gateway + EIP per AZ, so private subnet egress survives an AZ outage<br>EKS node group spans both AZs (2-4 nodes), so losing one AZ doesn't take down the cluster |
+| **Security** | No static AWS credentials — IRSA for S3, RDS, and Pricing API<br>Dedicated ServiceAccount + read-only ClusterRole<br>Private subnets, no public IPs<br>TLS via a Route53-hosted domain + DNS-validated ACM certificate on the frontend NLB |
+| **Elasticity** | HPA on frontend + backend: 3–30 pods, CPU-based<br>EKS node group scales 2-4 nodes on CPU via target tracking |
+| **Cost-Efficiency** | RDS on db.t4g.micro — cheapest general-purpose Graviton class<br>gp3 storage instead of gp2<br>No RDS backups (acceptable trade-off for a demo project)<br>Node and pod autoscaling avoid paying for idle capacity |
 
 
 
