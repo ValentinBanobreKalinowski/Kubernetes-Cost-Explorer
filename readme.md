@@ -36,5 +36,19 @@ Frontend and backend Deployments in their own namespaces, each behind an HPA, wi
 | **Elasticity** | HPA on frontend + backend: 3–30 pods, CPU-based<br>EKS node group scales 2-4 nodes on CPU via target tracking |
 | **Cost-Efficiency** | RDS on db.t4g.micro — cheapest general-purpose Graviton class<br>gp3 storage instead of gp2<br>No RDS backups (acceptable trade-off for a demo project)<br>Node and pod autoscaling avoid paying for idle capacity |
 
+## How to Run
 
+**Prerequisites:** Docker, kubectl, [skaffold](https://skaffold.dev/), Terraform, AWS CLI (configured with credentials).
 
+### Local (k3d)
+1. Point kubectl at a local k3d cluster.
+2. Copy `.env.example` to `.env` and fill in Postgres credentials.
+3. `skaffold dev`
+
+### AWS (EKS)
+1. Fill in `.env` with Postgres credentials, `TF_VAR_domain_name`, and `TF_VAR_app_hostname` (a domain you own, registered in Route53).
+2. `./scripts/deploy-all.sh` — provisions the infra with Terraform, then builds/pushes images to ECR and deploys via Skaffold.
+3. `./scripts/update-dns.sh` — points the domain at the frontend's load balancer once it's up.
+4. Visit `https://<app_hostname>`.
+
+To tear everything down: `./scripts/destroy-all.sh`.
