@@ -19,3 +19,19 @@ A dashboard that tracks per-namespace resource usage and estimated cost across a
 ## Architecture
 ![Infrastructure diagram](docs/infrastructure.svg)
 ![Cluster diagram](docs/cluster.svg)
+
+
+## Key Design Decisions
+
+### Availability
+- Multi-AZ (EKS nodes + RDS across 2 AZs)
+- EKS node group backed by an Auto Scaling Group
+
+### Scalability
+- HPA on frontend + backend: 3–30 pods, CPU-based
+
+### Security
+- No static AWS credentials — IRSA for S3, RDS, and Pricing API
+- Dedicated ServiceAccount + read-only ClusterRole
+- Private subnets, no public IPs
+
