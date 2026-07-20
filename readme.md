@@ -19,11 +19,22 @@ A dashboard that tracks per-namespace resource usage and estimated cost across a
 
 ## Architecture
 ### AWS infrastructure
-VPC across 2 AZs, EKS + Multi-AZ RDS in private subnets, NAT gateway per AZ for outbound access, an IAM OIDC provider for IRSA, and Route53/ACM for TLS on the frontend load balancer.
+- VPC spanning 2 AZs (eu-central-1a/b), each with a public + private subnet
+- EKS cluster and node group in the private subnets; RDS Postgres alongside them, Multi-AZ (primary + synchronous standby)
+- One NAT Gateway + EIP per AZ in the public subnets, for private subnet egress
+- Frontend reachable via a Network Load Balancer in the public subnets, TLS-terminated with an ACM certificate issued for a Route53-hosted domain
+- IAM OIDC provider for IRSA, plus roles scoping S3 writes, RDS IAM connect, and Pricing API reads to the backend pod only
+- ECR repos for the backend/frontend images, S3 bucket for the hourly cost reports
+
 ![Infrastructure diagram](docs/infrastructure.svg)
 
 ### Kubernetes cluster
-Frontend and backend Deployments in their own namespaces, each behind an HPA, with IRSA-backed ServiceAccounts for AWS access instead of static credentials.
+- Frontend and backend each in their own namespace, as a Deployment + Service + HPA (frontend: avg CPU 20%, backend: avg CPU 50%)
+- Frontend Service is type LoadBalancer (the entry point from the internet); backend Service is ClusterIP, only reachable from inside the cluster
+- Backend pods run under a dedicated ServiceAccount, IAM-role-annotated for IRSA, with a read-only ClusterRole to read node/pod metrics for the cost calculations
+- `metrics-server` in kube-system backs both the HPA and that metrics API
+- A one-shot `rds-iam-bootstrap` Job grants the backend's IAM-mapped DB role `rds_iam`, since RDS Postgres doesn't allow IAM auth for the master user
+
 ![Cluster diagram](docs/cluster.svg)
 
 
