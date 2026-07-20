@@ -3,7 +3,7 @@
 # The frontend Service is type=LoadBalancer on EKS, so AWS provisions a
 # classic ELB for it outside of Terraform (no aws_lb resource tracks it).
 # Its ENIs stay attached to the VPC's subnets/security groups until the ELB
-# is deleted, which blocks terraform destroy. This script deletes the ELB 
+# is deleted, which blocks terraform destroy. This script deletes the ELB
 # first, then we can run terraform destroy.
 
 set -euo pipefail # Exit on error, unset variable, or error in pipe
