@@ -19,11 +19,5 @@
 A dashboard that tracks per-namespace resource usage and estimated cost across a Kubernetes cluster in real time. It snapshots pod resource requests on an interval, prices them against real AWS EC2 on-demand rates for whichever node they're running on, stores the history in Postgres, and exports hourly cost reports to S3.
 
 ## Architecture
-
-**AWS infrastructure**
-
 ![Infrastructure diagram](docs/infrastructure.svg)
-
-**Kubernetes cluster**
-
-![Cluster diagram](docs/clusterDiagram.svg)
+![Cluster diagram](docs/cluster.svg)
